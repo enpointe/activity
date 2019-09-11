@@ -58,6 +58,14 @@ func (activity *Work) addAction() {
 	activitySummary.mu.Unlock()
 }
 
+
+// ClearStats clears all saved activity that has been recorded by AddAction
+func ClearStats() {
+	activitySummary.mu.Lock()
+	activitySummary.m = make(map[string]activityHistory)
+	activitySummary.mu.Unlock()
+}
+
 // AddAction this function accepts a json serialized string in the form "{ action: string, time: int}" and
 // maintains an average time for each action that can be retrieved using GetStat. There are no predefined
 // actions or time intervals. The callee is responsible for ensuring these values are consistent.
@@ -109,11 +117,5 @@ func GetStats() string {
 	return string(bs)
 }
 
-// ClearStats clears all saved activity that has been recorded by AddAction
-func ClearStats() {
-	activitySummary.mu.Lock()
-	activitySummary.m = make(map[string]activityHistory)
-	activitySummary.mu.Unlock()
-}
 
 
