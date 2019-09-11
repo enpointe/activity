@@ -11,8 +11,8 @@ import (
 	"sync"
 )
 
-// Activity represents the underlying json object sent to AddAction()
-type Activity struct {
+// Work represents the underlying json object sent to AddAction()
+type Work struct {
 	Action string `json:"action"` // Allowed action types are not defined
 	Time   int    `json:"time"`   // Time period type is not defined
 }
@@ -31,12 +31,12 @@ type activityHistory struct {
 
 var activitySummary = struct {
 	mu sync.RWMutex               // Protects the map
-	m  map[string]activityHistory // key = activity, value = activitySummary
+	m  map[string]activityHistory // key = Action, value = activitySummary
 }{m: make(map[string]activityHistory)}
 
-// addAction takes the passed in activity and updates the time spent on the activity and
-// the # of times the activity has been performed
-func (activity *Activity) addAction() {
+// addAction takes the passed in work activity and updates the time spent on the specified Action and
+// the # of times the Action has been performed
+func (activity *Work) addAction() {
 	activitySummary.mu.Lock()
 	a, exists := activitySummary.m[activity.Action]
 	if exists {
@@ -64,7 +64,7 @@ func AddAction(jsonActivity string) error {
 		return fmt.Errorf(`Invalid JSON request %v must be in the form { action: string, time: int}`, jsonActivity)
 	}
 
-	var activity Activity
+	var activity Work
 	err := json.Unmarshal(bs, &activity)
 	if err != nil {
 		log.Println(jsonActivity, err)
@@ -74,7 +74,7 @@ func AddAction(jsonActivity string) error {
 	return nil
 }
 
-// getStatus calculates the average stats for each activity
+// getStatus calculates the average stats for each action that has been recorded by AddAction
 func getStats() []Average {
 	activitySummary.mu.RLock()
 	stats := make([]Average, 0, len(activitySummary.m))
