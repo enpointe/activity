@@ -8,6 +8,10 @@ As this is a Go module the code cannot be installed directly inside the $GOPATH 
 For information on using GO modules see the article 
 [Create projects independent of $GOPATH using Go Modules](https://medium.com/mindorks/create-projects-independent-of-gopath-using-go-modules-802260cdfb51)
 
+# Bugs
+
+* When used in the context of an imported module ClearStats() is coming up as undefined. AddAction() and GetStats() are being properly linked.
+
 # Possible Future Enhancements
 
 NOTE: As indicated this is an overly simplist implemenation. Possible future enchancements might include
