@@ -1,18 +1,38 @@
-package activity
+package activity_test
 
 import (
 	"encoding/json"
 	"sync"
 	"testing"
+
+	"github.com/enpointe/activity"
 )
 
-// Helper function that retieves the stats data and returns
-// both the umarshalled and resulting []Averag data
-func testGetStats(t *testing.T) (string, []Average) {
-	data := GetStats()
+// testRecord add the specified action and time spent on action to
+// recorded actions
+func testRecord(t *testing.T, action string, time int) {
+	record := activity.Work{
+		Action: action,
+		Time:   time}
+
+	// Send the data as a JSON object to AddAction
+	bs, err := json.Marshal(record)
+	if err != nil {
+		t.Errorf("JSON Marshal failed: %v", err)
+	}
+	err = activity.AddAction(string(bs))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// retrieve fetch the average of the recorded stats
+func testRetrieve(t *testing.T) (string, []activity.Average) {
+	// Retrieve the JSON stats via GetStats
+	data := activity.GetStats()
+	// Convert the JSON object to a struct
 	bs := []byte(data)
-	// Unmarshall the results
-	var actionStats []Average
+	var actionStats []activity.Average
 	err := json.Unmarshal(bs, &actionStats)
 	if err != nil {
 		t.Errorf("Failed to unmarshal GetStats data %v: %v", data, err)
@@ -22,10 +42,10 @@ func testGetStats(t *testing.T) (string, []Average) {
 
 // Test to ensure clearStats zeros out all captured activites
 func TestClearStats(t *testing.T) {
-	clearStats()
-	data, actionStats := testGetStats(t)
+	activity.ClearStats()
+	data, actionStats := testRetrieve(t)
 	if len(actionStats) != 0 {
-		t.Errorf("clearStats() did not clear stats: %v", data)
+		t.Errorf("ClearStats() did not clear stats: %v", data)
 	}
 }
 
@@ -33,7 +53,7 @@ func TestClearStats(t *testing.T) {
 func TestEmptyAction(t *testing.T) {
 	t.Parallel()
 	var emptyJSONString string
-	err := AddAction(emptyJSONString)
+	err := activity.AddAction(emptyJSONString)
 	if err == nil {
 		t.Error("Expected error to be generated for invalid json input")
 	}
@@ -42,7 +62,7 @@ func TestEmptyAction(t *testing.T) {
 // Test addAction when invalid JSON string passed to ensure error is generated
 func TestInvalidJSONStr(t *testing.T) {
 	t.Parallel()
-	err := AddAction("Not a JSON string")
+	err := activity.AddAction("Not a JSON string")
 	if err == nil {
 		t.Error(err)
 	}
@@ -57,7 +77,7 @@ func TestMalformedJSONInput(t *testing.T) {
         "somedata": "jump",
     }
 	`))
-	err := AddAction(malformed)
+	err := activity.AddAction(malformed)
 	if err == nil {
 		t.Error("Excepted failure for malformed JSON data")
 	}
@@ -72,7 +92,7 @@ func TestSingleDataAction(t *testing.T) {
         "time": 100
     }
 	`))
-	err := AddAction(jsonActivity)
+	err := activity.AddAction(jsonActivity)
 	if err != nil {
 		t.Errorf("Unexpected failure: %v", err)
 	}
@@ -81,40 +101,22 @@ func TestSingleDataAction(t *testing.T) {
 // Perform a raw json transfer
 func TestSimpleAction(t *testing.T) {
 	t.Parallel()
-	workout := Work{
-		Action: "swim",
-		Time:   1000}
-
-	bs, err := json.Marshal(workout)
-	if err != nil {
-		// This shouldn't ever happen.
-		t.Errorf("Unexpected JSON Marshal error on %v: %v", workout, err)
-	}
-	err = AddAction(string(bs))
-	if err != nil {
-		t.Errorf("Failed to add action: %v", err)
-	}
+	testRecord(t, "swim", 1000)
 }
 
 // Test that average for action jump is computed correctly when returned via GetStats()
 func TestGetStatsAvg(t *testing.T) {
 	const Jump = "jump"
-	jumps := []Work{
-		Work{Jump, 100},
-		Work{Jump, 25},
-		Work{Jump, 25},
-		Work{Jump, 100},
-		Work{Jump, 100},
-		Work{Jump, 75},
-		Work{Jump, 25},
-	}
-	// Expected average 64
+	activity.ClearStats()
+	testRecord(t, Jump, 100)
+	testRecord(t, Jump, 25)
+	testRecord(t, Jump, 25)
+	testRecord(t, Jump, 100)
+	testRecord(t, Jump, 100)
+	testRecord(t, Jump, 75)
+	testRecord(t, Jump, 25)
 	expectedAverage := 64
-	clearStats()
-	for _, activity := range jumps {
-		activity.addAction()
-	}
-	data, actionStats := testGetStats(t)
+	data, actionStats := testRetrieve(t)
 	if len(actionStats) > 1 {
 		t.Errorf("Expected 1 statistic got %v: %v", len(actionStats), data)
 	}
@@ -133,42 +135,21 @@ func TestMultipleConcurrentActions(t *testing.T) {
 	var wg sync.WaitGroup
 	const operations = 100
 	wg.Add(operations)
-	jumpAction := string([]byte(`
-    {
-        "action": "run",
-        "time": 100
-    }
-	`))
-	walkAction := string([]byte(`
-    {
-        "action": "walk",
-        "time": 100
-    }
-	`))
-	clearStats()
-	AddAction(jumpAction)
+	activity.ClearStats()
 	for i := 0; i < operations/2; i++ {
 		go func() {
 			defer wg.Done()
-			stats := GetStats()
-			if len(stats) == 0 {
-				t.Errorf("Failed to retrieve any stats")
-			}
-			err := AddAction(jumpAction)
-			if err != nil {
-				t.Error(err)
-			}
-			AddAction(walkAction)
-			if err != nil {
-				t.Error(err)
-			}
+			testRetrieve(t)
+			testRecord(t, "run", 100)
+			testRecord(t, "walk", 10)
+			testRecord(t, "run", 25)
 		}()
 		go func() {
 			defer wg.Done()
-			err := AddAction(jumpAction)
-			if err != nil {
-				t.Error(err)
-			}
+			testRecord(t, "walk", 300)
+			testRecord(t, "run", 300)
+			testRecord(t, "walk", 10)
+			testRetrieve(t)
 		}()
 	}
 	wg.Wait()

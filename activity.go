@@ -1,6 +1,10 @@
 // Package activity provides a simple in memory implementation for recording
-// activities and the time spent on each activity via JSON requests. The
+// activities, refered to as actions, and the time spent on each action. The
 // actions and times added only exists in memory and are not persisted.
+//
+// There are no predefined actions or time intervals.  It's the callees
+// responsiblity to ensure that all actions recorded have the same case
+// and time interval.
 package activity
 
 import (
@@ -13,8 +17,8 @@ import (
 
 // Work represents the underlying json object sent to AddAction()
 type Work struct {
-	Action string `json:"action"` // Allowed action types are not defined
-	Time   int    `json:"time"`   // Time period type is not defined
+	Action string `json:"action"` // Action performed
+	Time   int    `json:"time"`   // Time period to record for action
 }
 
 // Average is the underlying json array object returned via GetStat()
@@ -35,12 +39,12 @@ var activitySummary = struct {
 }{m: make(map[string]activityHistory)}
 
 // addAction takes the passed in work activity and updates the time spent on the specified Action and
-// the # of times the Action has been performed
+// the # of times the Action has been performed.
 func (activity *Work) addAction() {
 	activitySummary.mu.Lock()
 	a, exists := activitySummary.m[activity.Action]
 	if exists {
-		// Update the current action record=
+		// Update the current action record
 		a.totalExecutionTime += activity.Time
 		a.actionRepeated++
 	} else {
@@ -55,9 +59,8 @@ func (activity *Work) addAction() {
 }
 
 // AddAction this function accepts a json serialized string in the form "{ action: string, time: int}" and
-// maintains an average time for each action that can be retrieved using GetStat(). The time period is not defined
-// and it's the callers responsiblity to track the type of time period and ensure all entered time periods are
-// consistent
+// maintains an average time for each action that can be retrieved using GetStat(). There are no predefined
+// actions or time intervals. The callee is responsible for ensuring these values are consistent.
 func AddAction(jsonActivity string) error {
 	bs := []byte(jsonActivity)
 	if !json.Valid(bs) {
@@ -74,7 +77,7 @@ func AddAction(jsonActivity string) error {
 	return nil
 }
 
-// getStatus calculates the average stats for each action that has been recorded by AddAction
+// getStatus calculates and returns the average stats for each action that has been recorded by AddAction
 func getStats() []Average {
 	activitySummary.mu.RLock()
 	stats := make([]Average, 0, len(activitySummary.m))
@@ -106,8 +109,8 @@ func GetStats() string {
 	return string(bs)
 }
 
-// clearStats clears all saved activity that has been recorded by addAction
-func clearStats() {
+// ClearStats clears all saved activity that has been recorded by addAction
+func ClearStats() {
 	activitySummary.mu.Lock()
 	activitySummary.m = make(map[string]activityHistory)
 	activitySummary.mu.Unlock()
