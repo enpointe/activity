@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleAddAction() {
-	activity := Activity{
+	activity := Work{
 		Action: "swim",
 		Time:   300}
 
