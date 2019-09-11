@@ -59,7 +59,7 @@ func (activity *Work) addAction() {
 }
 
 // AddAction this function accepts a json serialized string in the form "{ action: string, time: int}" and
-// maintains an average time for each action that can be retrieved using GetStat(). There are no predefined
+// maintains an average time for each action that can be retrieved using GetStat. There are no predefined
 // actions or time intervals. The callee is responsible for ensuring these values are consistent.
 func AddAction(jsonActivity string) error {
 	bs := []byte(jsonActivity)
@@ -95,7 +95,7 @@ func getStats() []Average {
 }
 
 // GetStats returns a serialized json array of the action and the average time for each action that has been
-// provided to the addAction function.
+// provided to the AddAction
 func GetStats() string {
 	stats := getStats()
 
@@ -109,9 +109,11 @@ func GetStats() string {
 	return string(bs)
 }
 
-// ClearStats clears all saved activity that has been recorded by addAction
+// ClearStats clears all saved activity that has been recorded by AddAction
 func ClearStats() {
 	activitySummary.mu.Lock()
 	activitySummary.m = make(map[string]activityHistory)
 	activitySummary.mu.Unlock()
 }
+
+
