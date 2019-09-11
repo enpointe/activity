@@ -42,7 +42,6 @@ func Example() {
 
 	// Record activity
 	record("jump", 100)
-	record("run", 75)
 	record("jump", 200)
 
 	// Retrieve average of recorded activities
@@ -58,5 +57,4 @@ func Example() {
 	}
 	// Output:
 	// activity: jump  avg: 150
-	// activity: run  avg: 75
 }
