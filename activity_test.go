@@ -25,7 +25,7 @@ func TestClearStats(t *testing.T) {
 	clearStats()
 	data, actionStats := testGetStats(t)
 	if len(actionStats) != 0 {
-		t.Errorf("clearStats() did not clear activity stats: %v", data)
+		t.Errorf("clearStats() did not clear stats: %v", data)
 	}
 }
 
@@ -81,14 +81,14 @@ func TestSingleDataAction(t *testing.T) {
 // Perform a raw json transfer
 func TestSimpleAction(t *testing.T) {
 	t.Parallel()
-	activity := Activity{
+	workout := Work{
 		Action: "swim",
 		Time:   1000}
 
-	bs, err := json.Marshal(activity)
+	bs, err := json.Marshal(workout)
 	if err != nil {
 		// This shouldn't ever happen.
-		t.Errorf("Unexpected JSON Marshal error on %v: %v", activity, err)
+		t.Errorf("Unexpected JSON Marshal error on %v: %v", workout, err)
 	}
 	err = AddAction(string(bs))
 	if err != nil {
@@ -99,14 +99,14 @@ func TestSimpleAction(t *testing.T) {
 // Test that average for action jump is computed correctly when returned via GetStats()
 func TestGetStatsAvg(t *testing.T) {
 	const Jump = "jump"
-	jumps := []Activity{
-		Activity{Jump, 100},
-		Activity{Jump, 25},
-		Activity{Jump, 25},
-		Activity{Jump, 100},
-		Activity{Jump, 100},
-		Activity{Jump, 75},
-		Activity{Jump, 25},
+	jumps := []Work{
+		Work{Jump, 100},
+		Work{Jump, 25},
+		Work{Jump, 25},
+		Work{Jump, 100},
+		Work{Jump, 100},
+		Work{Jump, 75},
+		Work{Jump, 25},
 	}
 	// Expected average 64
 	expectedAverage := 64
