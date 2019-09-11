@@ -58,7 +58,6 @@ func (activity *Work) addAction() {
 	activitySummary.mu.Unlock()
 }
 
-
 // ClearStats clears all saved activity that has been recorded by AddAction
 func ClearStats() {
 	activitySummary.mu.Lock()
@@ -116,6 +115,3 @@ func GetStats() string {
 	}
 	return string(bs)
 }
-
-
-
