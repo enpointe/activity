@@ -1,7 +1,18 @@
 
-NOTE: This work will be replaced by v2 Branch
+Version 2 In Progress
 
-This is a simplistic implemenation of golang activity module that provides a simple in memory implementation for recording activities and the time spent on each activity via JSON requests. It is intended primary as the means to explore and learn about go lang.
+This is a rework/expansion of the version 1 implementation of this activity logger.
+
+This version is being expanded to:
+
+* Add backend storage using MongoDB
+* Add a front end http interface to access the JSON methods
+* Add ability to store information about the user exercising
+* Add ability to store information about the exercise being perform
+* Add ability to record the time spent performing a specific exercise for a specific user
+* Add basic security to the REST api calls to ensure proper access
+
+
 
 # Development
 
@@ -29,12 +40,14 @@ This project is laid out as a Go module. As such the code cannot be installed di
 
 The docker container script "start-dev-container.sh" has been setup to ensure a consistent development environment.
 
+# References
+* [Make yourself a Go web server with MongoDb(https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)]
+* [Context keys in Go(https://medium.com/@matryer/context-keys-in-go-5312346a868d#.hb4spbx1a)]
+* [Implementing OAuth 2.0 with Go(https://www.sohamkamani.com/blog/golang/2018-06-24-oauth-with-golang/)]
+# TODO
 
-# Possible Future Enhancements
-
-NOTE: As indicated this is an overly simplist implemenation being used to explore and learn about golang. Possible future enchancements might include
-
-* Add persistent store to store action data and time over restarts
-* Add methods to restrict actions to a well defined set of actions
-* Define a clearly identifiable time interval
-* Add ability to auto record time period via start/stop action methods
+* Add more robust logging via [logrus(https://github.com/sirupsen/logrus])]
+* Create custom error types so that more realistic https status code can be returned when 
+a error occurs at the database level due to bad data in request
+* Add security to http request
+* Add configuration to the database
