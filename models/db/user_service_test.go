@@ -22,9 +22,7 @@ func clearCollection(t *testing.T, config *db.Config) {
 
 func TestNewUserService(t *testing.T) {
 	// Ensure that we got a handle to the service
-	config := db.Config{
-		Database: TestDatabase,
-	}
+	config := db.Config{Database: TestDatabase}
 	ref, err := db.NewUserService(&config)
 	assert.NilError(t, err)
 	assert.Assert(t, ref != nil)
@@ -61,7 +59,7 @@ func TestCreateUser(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestLogin(t *testing.T) {
+func TestValidate(t *testing.T) {
 	config := db.Config{Database: TestDatabase}
 	// Clear the test collection at the start and end of the test
 	clearCollection(t, &config)
@@ -84,7 +82,7 @@ func TestLogin(t *testing.T) {
 		Username: user.Username,
 		Password: user.Password,
 	}
-	clientUser, err := userService.Login(&credentials)
+	clientUser, err := userService.Validate(&credentials)
 	assert.NilError(t, err)
 	assert.Assert(t, len(clientUser.ID) != 0)
 	assert.Equal(t, user.Username, clientUser.Username)
@@ -92,7 +90,7 @@ func TestLogin(t *testing.T) {
 
 	// Atempt to login with the improper credentials
 	credentials.Password = "wrongPassword"
-	clientUser, err = userService.Login(&credentials)
+	clientUser, err = userService.Validate(&credentials)
 }
 
 func TestGetUserByName(t *testing.T) {
@@ -122,4 +120,43 @@ func TestGetUserByName(t *testing.T) {
 	// Attempt to retrieve non existent user
 	retUser, err = userService.GetUserByUsername("nonExistentUser")
 	assert.ErrorContains(t, err, "not found")
+}
+
+func TestGetAllUsers(t *testing.T) {
+	config := db.Config{Database: TestDatabase}
+	// Clear the test collection at the start and end of the test
+	clearCollection(t, &config)
+	defer func() {
+		clearCollection(t, &config)
+	}()
+
+	userService, err := db.NewUserService(&config)
+	assert.NilError(t, err)
+
+	wwomen := client.User{
+		Username: "wwomen",
+		Password: "tellTheTruth",
+	}
+	err = userService.CreateUser(&wwomen)
+	assert.NilError(t, err)
+
+	admin := client.User{
+		Username: "admin",
+		Password: "changeMe",
+	}
+	err = userService.CreateUser(&admin)
+	assert.NilError(t, err)
+
+	// Add a test user
+	ironman := client.User{
+		Username: "ironman",
+		Password: "tonystark",
+	}
+	err = userService.CreateUser(&ironman)
+	assert.NilError(t, err)
+
+	// Attempt to retrieve the testUser
+	users, err := userService.GetAllUsers()
+	assert.Assert(t, err == nil)
+	assert.Equal(t, len(users), 3)
 }

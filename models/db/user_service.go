@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/enpointe/activity/models/client"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -39,18 +39,6 @@ func NewUserService(config *Config) (*UserService, error) {
 
 // CreateUser add a new user to the database
 func (s *UserService) CreateUser(user *client.User) error {
-	// TODO limit username to a set of defined character types via regex check
-
-	if len(strings.TrimSpace(user.Username)) < 4 {
-		err := fmt.Errorf("invalid username '%s' specified, minimum length is 4 characters", user.Username)
-		return err
-	}
-	// TODO add password validity check
-	if len(user.Password) < 8 {
-		err := fmt.Errorf("invalid password specified, minimum length is 8 characters")
-		return err
-
-	}
 	u, err := NewUser(user)
 	if err != nil {
 		return err
@@ -124,14 +112,58 @@ func (s *UserService) GetUserByUsername(username string) (client.User, error) {
 	}
 	hUser = client.User{
 		ID:       user.ID.Hex(),
-		Username: user.UserName,
+		Username: user.Username,
 		Password: "-",
 	}
 	return hUser, nil
 }
 
-// Login log into the service
-func (s *UserService) Login(c *client.Credentials) (client.User, error) {
+// GetAllUsers return information about all users
+func (s *UserService) GetAllUsers() ([]*client.User, error) {
+
+	// Set how long to wait for operation to complete before timing out
+	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+
+	var results []*client.User
+
+	// Check to make sure a user with the specified user ID doesn't already exist
+	cursor, err := s.collection.Find(context, bson.D{{}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context)
+
+	// Finding multiple documents returns a cursor
+	// Iterating through the cursor allows us to decode documents one at a time
+	for cursor.Next(context) {
+
+		// create a value into which the single document can be decoded
+		var elem User
+		err := cursor.Decode(&elem)
+		if err != nil {
+			log.Printf("GetAllUsers: failed to decode %s", elem)
+			return nil, err
+		}
+
+		user := client.User{
+			ID:        elem.ID.Hex(),
+			Username:  elem.Username,
+			Password:  "-",
+			Privilege: elem.Privilege.String(),
+		}
+
+		results = append(results, &user)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// Validate validate the credentials of the user
+func (s *UserService) Validate(c *client.Credentials) (client.User, error) {
 	var hUser client.User
 	user, err := s.getUserByUsername(c.Username)
 	if err != nil {
@@ -144,7 +176,7 @@ func (s *UserService) Login(c *client.Credentials) (client.User, error) {
 	}
 	hUser = client.User{
 		ID:       user.ID.Hex(),
-		Username: user.UserName,
+		Username: user.Username,
 		Password: "-",
 	}
 	return hUser, nil
