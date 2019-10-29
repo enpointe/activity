@@ -6,7 +6,7 @@ import (
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/perm"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewUser(t *testing.T) {
@@ -17,13 +17,15 @@ func TestNewUser(t *testing.T) {
 		Privilege: "admin",
 	}
 	dbUser, err := db.NewUser(&user)
-	assert.NilError(t, err)
-	assert.Assert(t, len(dbUser.ID) > 0)
-	assert.Assert(t, dbUser.Password != user.Password)
-	assert.Equal(t, dbUser.Privilege, perm.Admin)
+
+	assert.Nil(t, err)
+	assert.Greater(t, len(dbUser.ID), 0)
+	assert.NotEqual(t, dbUser.Password, user.Password)
+	assert.Equal(t, user.Privilege, perm.Admin.String())
 
 	user.Password = ""
 	dbUser, err = db.NewUser(&user)
-	assert.NilError(t, err)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "minimum length")
 
 }

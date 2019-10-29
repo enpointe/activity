@@ -10,7 +10,8 @@ This version is being expanded to:
 * Add ability to store information about the user exercising
 * Add ability to store information about the exercise being perform
 * Add ability to record the time spent performing a specific exercise for a specific user
-* Add basic security to the REST api calls to ensure proper access
+* Add basic security to the REST api calls to ensure proper access via JWT authentication
+and user access control via login/logout
 
 
 
@@ -30,9 +31,11 @@ $ scripts/scripts/start-dev-container.sh
 
 # Issues Tracking 
 
+Currently not being tracked for this branch
+
 [![Open issues](https://img.shields.io/github/issues/enpointe/activity)](https://github.com/enpointe/activity) [![Closed issues](https://img.shields.io/github/issues-closed/enpointe/activity)](https://github.com/enpointe/activity/issues?q=is%3Aissue+is%3Aclosed) [![Open PRs](https://img.shields.io/github/issues-pr/enpointe/activity)](https://github.com/enpointe/activity/pulls) [![Closed PRs](https://img.shields.io/github/issues-pr-closed/enpointe/activity)](https://github.com/enpointe/activity/pulls?q=is%3Apr+is%3Aclosed)
 
-This project use Github project, issues and pull requests to manage and track issues.
+FUTURE: This project use Github project, issues and pull requests to manage and track issues.
 
 # Project Structure
 

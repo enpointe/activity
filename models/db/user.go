@@ -12,7 +12,7 @@ import (
 )
 
 // UsernameCheck regular expression pattern for allowed username
-var usernameCheck = regexp.MustCompile(`^[a-z0-9_-]{4,16}$`).MatchString
+var usernameCheck = regexp.MustCompile(`^[A-Za-z0-9_-]{4,16}$`).MatchString
 
 // User privileges information
 type User struct {

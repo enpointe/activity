@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/enpointe/activity/perm"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestString(t *testing.T) {
@@ -20,13 +20,13 @@ func TestConvert(t *testing.T) {
 }
 
 func TestAuthorized(t *testing.T) {
-	assert.Assert(t, perm.Admin.Grants(perm.Admin))
-	assert.Assert(t, perm.Admin.Grants(perm.Staff))
-	assert.Assert(t, perm.Admin.Grants(perm.Basic))
-	assert.Assert(t, !perm.Staff.Grants(perm.Admin))
-	assert.Assert(t, perm.Staff.Grants(perm.Staff))
-	assert.Assert(t, perm.Staff.Grants(perm.Basic))
-	assert.Assert(t, !perm.Basic.Grants(perm.Admin))
-	assert.Assert(t, !perm.Basic.Grants(perm.Staff))
-	assert.Assert(t, perm.Basic.Grants(perm.Basic))
+	assert.True(t, perm.Admin.Grants(perm.Admin))
+	assert.True(t, perm.Admin.Grants(perm.Staff))
+	assert.True(t, perm.Admin.Grants(perm.Basic))
+	assert.True(t, !perm.Staff.Grants(perm.Admin))
+	assert.True(t, perm.Staff.Grants(perm.Staff))
+	assert.True(t, perm.Staff.Grants(perm.Basic))
+	assert.True(t, !perm.Basic.Grants(perm.Admin))
+	assert.True(t, !perm.Basic.Grants(perm.Staff))
+	assert.True(t, perm.Basic.Grants(perm.Basic))
 }
