@@ -1,5 +1,5 @@
 
-NOTE: This work will be replaced by v2 Branch
+NOTE: This project is being re-writen. See [activity Branch V2.0](https://github.com/enpointe/activity/tree/v2.0)
 
 This is a simplistic implemenation of golang activity module that provides a simple in memory implementation for recording activities and the time spent on each activity via JSON requests. It is intended primary as the means to explore and learn about go lang.
 
