@@ -1,5 +1,5 @@
 
-NOTE: This project is being re-writen. See [activity Branch V2.0](https://github.com/enpointe/activity/tree/v2.0)
+NOTE: This project is being re-written. See [activity Branch V2.0](https://github.com/enpointe/activity/tree/v2.0)
 
 This is a simplistic implemenation of golang activity module that provides a simple in memory implementation for recording activities and the time spent on each activity via JSON requests. It is intended primary as the means to explore and learn about go lang.
 
@@ -14,7 +14,7 @@ Windows users need to additionally have an Unix-shell emulator to be able to run
 To start a docker container with the full running development environement execute the following command after cloning a copy of this development tree
 
 <code>
-$ scripts/scripts/start-dev-container.sh
+$ scripts/start-dev-container.sh
 </code>
 
 # Issues Tracking 
