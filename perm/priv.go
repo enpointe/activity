@@ -1,7 +1,5 @@
 package perm
 
-import "fmt"
-
 // Privilege defines privilege level
 type Privilege int8
 
@@ -24,7 +22,6 @@ func (p Privilege) String() string {
 	if p < Basic || p > Admin {
 		return "basic"
 	}
-	fmt.Printf("P=%d\n", p)
 	return names[p]
 }
 

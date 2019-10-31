@@ -10,9 +10,11 @@ type User struct {
 
 // UserService functions to associate with User struct
 type UserService interface {
-	CreateUser(u *User) error
-	DeleteAllUserData(u *User) error
-	GetUserByUsername(username string) (error, User)
-	Validate(c Credentials) (error, User)
-	GetAllUsers() ([]*User, error)
+	Create(u *User) error
+	DeleteUserData(u *User) error
+	GetAll() ([]*User, error)
+	GetByID(id string) (*User, error)
+	GetByUsername(username string) (*User, error)
+	Update(u *User) error
+	Validate(c *Credentials) (*User, error)
 }

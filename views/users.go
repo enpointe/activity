@@ -51,7 +51,7 @@ func CreateUser(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	err = userService.CreateUser(&user)
+	err = userService.Create(&user)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -99,7 +99,7 @@ func GetUser(response http.ResponseWriter, request *http.Request) {
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
 	}
-	user, err := userService.GetUserByUsername(username)
+	user, err := userService.GetByUsername(username)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -139,7 +139,7 @@ func GetUsers(response http.ResponseWriter, request *http.Request) {
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
 	}
-	user, err := userService.GetAllUsers()
+	user, err := userService.GetAll()
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))

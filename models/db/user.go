@@ -16,10 +16,10 @@ var usernameCheck = regexp.MustCompile(`^[A-Za-z0-9_-]{4,16}$`).MatchString
 
 // User privileges information
 type User struct {
-	ID        primitive.ObjectID `bson:"_id,unique"`
-	Username  string             `bson:"user_id,unique"`
-	Password  string             `bson:"password"`
-	Privilege perm.Privilege     `bson:"privilege"` // admin, staff, user
+	ID        primitive.ObjectID `bson:"_id,unique" json:"_id,omitempty"`
+	Username  string             `bson:"user_id,unique" json:"user_id,omitempty"`
+	Password  string             `bson:"password" json:"password,omitempty"`
+	Privilege perm.Privilege     `bson:"privilege" json:"privilege,omitempty"` // admin, staff, user
 }
 
 // NewUser transforms the web facing User structure
@@ -59,4 +59,15 @@ func (u *User) setHashedPassword(password string) error {
 
 func (u *User) comparePassword(password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+}
+
+// Convert transform into a client facing User object
+// Password is converted to "-"
+func (u *User) Convert() client.User {
+	return client.User{
+		ID:        u.ID.Hex(),
+		Username:  u.Username,
+		Password:  "-",
+		Privilege: u.Privilege.String(),
+	}
 }

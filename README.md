@@ -1,56 +1,80 @@
 
-Version 2 In Progress
+# Version 2.0
 
-This is a rework/expansion of the version 1 implementation of this activity logger.
+This is a rework/expansion of the version 1.0 implementation of this activity logger which was written as a take home project for a job interview.
 
-This version is being expanded to:
+This project is primarily intended as a learning exercise to learn how to program in Golang.
+
+In order to make the origional project a bit more interesting the overall project is being expanded to include
 
 * Add backend storage using MongoDB
+    * Three database tables are being added
+        * Users  - table to hold user information (username, password, privileges)
+        * Exercise - table to hold a list of exercises and there descriptions
+        * Log - table to log time spent on various exercises by a specific user
+* Add user authentication
 * Add a front end http interface to access the JSON methods
-* Add ability to store information about the user exercising
-* Add ability to store information about the exercise being perform
-* Add ability to record the time spent performing a specific exercise for a specific user
-* Add basic security to the REST api calls to ensure proper access via JWT authentication
-and user access control via login/logout
+
+# Status
+
+Current status of work completed so far:
+
+* Basic Templates for database tables has been created
+* Initial model, view, controller layout has been created.
+    * model db/client layout is being used to maintain a clear seperation of data objects
+* Initial http interfaces for user have been created
+* Basic login/logout with JWT authentication has been implemented.
+    * JWT token stored as a cookie in the session
+* JWT secret key needs to be configurable.
+    * Consider creating a cli interface for this
+* Initial privilege support added to user structure. 
+    * Need to create an initial admin user in order for http interfaces to function.
+        * Consider creating a cli interface for this
+
+# Work outstanding
+
+* Improve unit test
+    * Investigate how to mock database calls
+    * Modify view such that we can use test database instead of actual database
+* Integration Level tests
+* Add more robust logging via [logrus](https://github.com/sirupsen/logrus])
+* Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
+* Use https 
+* Add database configuration for security
+* Add cli interface that allows initial admin user to be created
+* Add mechanism for prepopulating database with Exercises
+* Change database methods to allow context to be passed down from view level
+* Pass in context from views level. Wrapping call.  See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
+
+# Prerequisite
+
+As this tools uses MongoDB it will be necessary to install and start the mongod server. The following schema opperations will need to be executed
+in order to ensure things are setup properly
+
+```
+$ mongod
+```
+
+Start the server.  The server needs to be accessible via mongodb://localhost:27017
+
+```
+$ mongod
+```
 
 
+As all the components for this project have not been completed it will be necessary to prestub the database initially
+This can be done via 
 
-# Development
-
-Local development machines need to have following tools installed and working properly:
-
-- [Docker](https:://www.docker.com) for running a full-time containerized development environment.
-
-Windows users need to additionally have an Unix-shell emulator to be able to run utility scripts (Git Bash is recommended).
-
-To start a docker container with the full running development environement execute the following command after cloning a copy of this development tree
-
-<code>
-$ scripts/scripts/start-dev-container.sh
-</code>
-
-# Issues Tracking 
-
-Currently not being tracked for this branch
-
-[![Open issues](https://img.shields.io/github/issues/enpointe/activity)](https://github.com/enpointe/activity) [![Closed issues](https://img.shields.io/github/issues-closed/enpointe/activity)](https://github.com/enpointe/activity/issues?q=is%3Aissue+is%3Aclosed) [![Open PRs](https://img.shields.io/github/issues-pr/enpointe/activity)](https://github.com/enpointe/activity/pulls) [![Closed PRs](https://img.shields.io/github/issues-pr-closed/enpointe/activity)](https://github.com/enpointe/activity/pulls?q=is%3Apr+is%3Aclosed)
-
-FUTURE: This project use Github project, issues and pull requests to manage and track issues.
 
 # Project Structure
 
 This project is laid out as a Go module. As such the code cannot be installed directly inside the $GOPATH workarea. 
 
-The docker container script "start-dev-container.sh" has been setup to ensure a consistent development environment.
+The code is primarily laid out in a hierachy to support the notion of Model-View-Container. 
+
+TBD
 
 # References
-* [Make yourself a Go web server with MongoDb(https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)]
-* [Context keys in Go(https://medium.com/@matryer/context-keys-in-go-5312346a868d#.hb4spbx1a)]
-* [Implementing OAuth 2.0 with Go(https://www.sohamkamani.com/blog/golang/2018-06-24-oauth-with-golang/)]
-# TODO
+* [Make yourself a Go web server with MongoDb](https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)
+* [Implementing JWT based authentication in Golang](https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/)
 
-* Add more robust logging via [logrus(https://github.com/sirupsen/logrus])]
-* Create custom error types so that more realistic https status code can be returned when 
-a error occurs at the database level due to bad data in request
-* Add security to http request
-* Add configuration to the database

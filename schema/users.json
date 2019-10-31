@@ -1,0 +1,3 @@
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc1"},"user_id":"customer1","password":"$2a$10$wN/f8n8RGoHbngeO3Ub1L.wCZxZhb98xu1mk9Ysvct47.YggtDrr.","privilege":0}
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc2"},"user_id":"wwomen","password":"$2a$10$u05g/b0wHvZAmEwd6ABt2.gPPQqD.LlypM.fta6coleTpQ0qdgRdK","privilege":1}
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"admin","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2}

@@ -9,9 +9,9 @@ import (
 
 // Exercise represents information for a type of exercise
 type Exercise struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty"`
-	Name        string             `bson:"name,omitempty"`
-	Description string             `bson:"description,omitempty"`
+	ID          primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	Name        string             `bson:"name,omitempty" json:"name,omitempty"`
+	Description string             `bson:"description,omitempty" json:"description"`
 }
 
 // NewExercise transforms the web facing Exercise structure
@@ -25,4 +25,13 @@ func NewExercise(e *client.Exercise) *Exercise {
 		Description: strings.TrimSpace(e.Description),
 	}
 	return &exercise
+}
+
+// Convert transform into a client facing Exercise object
+func (e *Exercise) Convert() client.Exercise {
+	return client.Exercise{
+		ID:          e.ID.Hex(),
+		Name:        e.Name,
+		Description: e.Description,
+	}
 }

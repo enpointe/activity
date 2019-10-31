@@ -28,4 +28,9 @@ func TestNewUser(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "minimum length")
 
+	user.Username = "hi"
+	dbUser, err = db.NewUser(&user)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "invalid username")
+
 }

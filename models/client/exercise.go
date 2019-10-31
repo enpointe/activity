@@ -9,9 +9,10 @@ type Exercise struct {
 
 // ExerciseService functions available to Exercise
 type ExerciseService interface {
-	CreateExercise(e *Exercise) error
-	DeleteExercise(id string) error
-	UpdateExercise(e *Exercise) (*Exercise, error)
-	GetExercise(id string) (*Exercise, error)
-	GetAllExercises() (*[]Exercise, error)
+	Create(e *Exercise) error
+	Delete(id string) error
+	GetAll() ([]*Exercise, error)
+	GetByID(id string) (*Exercise, error)
+	GetByName(name string) (*Exercise, error)
+	Update(e *Exercise) error
 }

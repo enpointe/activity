@@ -2,11 +2,14 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"time"
 
 	"github.com/enpointe/activity/models/client"
+	"github.com/enpointe/activity/perm"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,8 +21,9 @@ const UsersCollection = "users"
 
 // UserService holds a entry to the User Collection in the database
 type UserService struct {
-	config     *Config
-	collection *mongo.Collection
+	Config     *Config
+	Connection *Connection
+	Collection *mongo.Collection
 }
 
 // NewUserService create a new instance of the User Service
@@ -34,11 +38,11 @@ func NewUserService(config *Config) (*UserService, error) {
 		config.CollectionName = UsersCollection
 	}
 	collection := connection.Database.Collection(config.CollectionName)
-	return &UserService{config, collection}, nil
+	return &UserService{config, connection, collection}, nil
 }
 
-// CreateUser add a new user to the database
-func (s *UserService) CreateUser(user *client.User) error {
+// Create add a new user to the database
+func (s *UserService) Create(user *client.User) error {
 	u, err := NewUser(user)
 	if err != nil {
 		return err
@@ -49,7 +53,7 @@ func (s *UserService) CreateUser(user *client.User) error {
 	defer cancel()
 
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor := s.collection.FindOne(context, bson.M{
+	cursor := s.Collection.FindOne(context, bson.M{
 		"user_id": user.Username,
 	})
 	if err = cursor.Err(); err == nil {
@@ -59,67 +63,94 @@ func (s *UserService) CreateUser(user *client.User) error {
 		return err
 	}
 
-	_, err = s.collection.InsertOne(context, &u)
+	_, err = s.Collection.InsertOne(context, &u)
 	if err != nil {
-		log.Printf("Insert of %s failed, %s", user, err)
+		err = fmt.Errorf("Unable to store user data in database, %s", err)
+		log.Print(err)
 	}
 
 	return err
 }
 
-// DeleteAllUserData deletes a user and all information associated with that user
-// from the database.
-func (s *UserService) DeleteAllUserData(user *client.User) error {
+// DeleteUserData deletes the user associated with id and all
+// associated information associated with that user. Once deleted
+// the information can not be recovered.
+func (s *UserService) DeleteUserData(hexid string) error {
 	// Set how long to wait for operation to complete before timing out
 	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
 	// TODO Must add in deletes for the users exercise logs when
-	// add to project
-	// TODO This must be done as a transaction to ensure that
+	// add to project. This must be done as a transaction to ensure that
 	// we don't end up with a partial deletion of data
 
-	idDoc := bson.D{primitive.E{Key: "user_id", Value: user.Username}}
-	_, err := s.collection.DeleteOne(context, idDoc)
+	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
-		log.Printf("Delete of %s failed, %s", user, err)
+		err = fmt.Errorf("invalid id %s, %s", hexid, err)
+		return err
+	}
+	results, err := s.Collection.DeleteOne(context, bson.M{"_id": idPrimitive})
+	if err != nil {
+
+		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
+		log.Print(err)
+	}
+	if results.DeletedCount == 0 {
+		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
 	}
 	return err
 }
 
-// getUserByUsername internal method for retrieving the user record
-func (s *UserService) getUserByUsername(username string) (User, error) {
+// GetByID retrieve the user record via the passed in username
+func (s *UserService) GetByID(id string) (*client.User, error) {
+	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+	idPrimitive, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		err = fmt.Errorf("invalid id %s, %s", id, err)
+		return nil, err
+	}
+	filter := bson.M{"_id": idPrimitive}
+	cursor := s.Collection.FindOne(context, filter)
+	if err := cursor.Err(); err != nil {
+		log.Printf("user '%s' not found in collection %s, %s", id, UsersCollection, err)
+		err = fmt.Errorf("user with specified id not found: %s", id)
+		return nil, err
+	}
 	var user User
+	cursor.Decode(&user)
+	cUser := user.Convert()
+	return &cUser, nil
+}
+
+// getByUsername internal method for retrieving the user record
+func (s *UserService) getByUsername(username string) (*User, error) {
 	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 	idDoc := bson.D{primitive.E{Key: "user_id", Value: username}}
-	cursor := s.collection.FindOne(context, idDoc)
+	cursor := s.Collection.FindOne(context, idDoc)
 	if err := cursor.Err(); err != nil {
 		log.Printf("user '%s' not found in collection %s, %s", username, UsersCollection, err)
 		err = fmt.Errorf("user with specified username not found: %s", username)
-		return user, err
+		return nil, err
 	}
+	var user User
 	cursor.Decode(&user)
-	return user, nil
+	return &user, nil
 }
 
-// GetUserByUsername retrieve the user record via the passed in username
-func (s *UserService) GetUserByUsername(username string) (client.User, error) {
-	var hUser client.User
-	user, err := s.getUserByUsername(username)
+// GetByUsername retrieve the user record via the passed in username
+func (s *UserService) GetByUsername(username string) (*client.User, error) {
+	user, err := s.getByUsername(username)
 	if err != nil {
-		return hUser, err
+		return nil, err
 	}
-	hUser = client.User{
-		ID:       user.ID.Hex(),
-		Username: user.Username,
-		Password: "-",
-	}
-	return hUser, nil
+	cUser := user.Convert()
+	return &cUser, nil
 }
 
-// GetAllUsers return information about all users
-func (s *UserService) GetAllUsers() ([]*client.User, error) {
+// GetAll return information about all users
+func (s *UserService) GetAll() ([]*client.User, error) {
 
 	// Set how long to wait for operation to complete before timing out
 	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
@@ -128,7 +159,7 @@ func (s *UserService) GetAllUsers() ([]*client.User, error) {
 	var results []*client.User
 
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor, err := s.collection.Find(context, bson.D{{}})
+	cursor, err := s.Collection.Find(context, bson.D{{}})
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +173,7 @@ func (s *UserService) GetAllUsers() ([]*client.User, error) {
 		var elem User
 		err := cursor.Decode(&elem)
 		if err != nil {
-			log.Printf("GetAllUsers: failed to decode %s", elem)
+			log.Printf("GetAll: failed to decode %s", elem)
 			return nil, err
 		}
 
@@ -162,22 +193,77 @@ func (s *UserService) GetAllUsers() ([]*client.User, error) {
 	return results, nil
 }
 
-// Validate validate the credentials of the user
-func (s *UserService) Validate(c *client.Credentials) (client.User, error) {
-	var hUser client.User
-	user, err := s.getUserByUsername(c.Username)
+// Update update the user record represented by u.ID.
+// Only the Username, Password, and Privilege fields may be updated
+func (s *UserService) Update(u *client.User) error {
+
+	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+
+	idPrimitive, err := primitive.ObjectIDFromHex(u.ID)
 	if err != nil {
-		return client.User{}, fmt.Errorf("invalid username/password")
+		err = fmt.Errorf("invalid id %s, %s", u.ID, err)
+		return err
+	}
+	filter := bson.M{"_id": idPrimitive}
+	update := bson.M{"$set": bson.M{
+		"username":  u.Username,
+		"password":  u.Password,
+		"privilege": perm.Convert(u.Privilege),
+	}}
+	updateResult, err := s.Collection.UpdateOne(context, filter, update)
+	if err != nil {
+		err = fmt.Errorf("failed to update user %s, %s", u.ID, err)
+		return err
+	}
+	if updateResult.ModifiedCount != 1 {
+		err = fmt.Errorf("failed to update user %s, no match found", u.ID)
+		return err
+	}
+	return nil
+}
+
+// Validate validate the credentials of the user
+func (s *UserService) Validate(c *client.Credentials) (*client.User, error) {
+	user, err := s.getByUsername(c.Username)
+	if err != nil {
+		return nil, fmt.Errorf("invalid username/password")
 	}
 
 	err = user.comparePassword(c.Password)
 	if err != nil {
-		return client.User{}, fmt.Errorf("invalid username/password")
+		return nil, fmt.Errorf("invalid username/password")
 	}
-	hUser = client.User{
-		ID:       user.ID.Hex(),
-		Username: user.Username,
-		Password: "-",
+	cUser := user.Convert()
+	return &cUser, nil
+}
+
+// LoadFromFile load json data from a file directly into a database.
+// If the ID field of the user data is not set, ie ObjectID.IsZero(),
+// a new ObjectID will be created for the user. The form of the json
+// file is compatible with mongoexport --type json --jsonArray
+func (s *UserService) LoadFromFile(filename string) error {
+	// Load values from JSON file to model
+	byteValues, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
 	}
-	return hUser, nil
+	var users []User
+	err = json.Unmarshal(byteValues, &users)
+	if err != nil {
+		return err
+	}
+	log.Print(users)
+	var userToAdd []interface{}
+	for _, u := range users {
+		// Check to see if the ID field is set. If not set it
+		if u.ID.IsZero() {
+			// Not set
+			u.ID = primitive.NewObjectID()
+		}
+		userToAdd = append(userToAdd, u)
+	}
+	// Insert users into DB
+	_, err = s.Collection.InsertMany(context.Background(), userToAdd)
+	return err
 }
