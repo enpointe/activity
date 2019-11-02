@@ -1,5 +1,5 @@
 
-# Version 2.0
+# Version 2.0 (In development)
 
 This is a rework/expansion of the version 1.0 implementation of this activity logger which was written as a take home project for a job interview.
 
@@ -12,8 +12,9 @@ In order to make the origional project a bit more interesting the overall projec
         * Users  - table to hold user information (username, password, privileges)
         * Exercise - table to hold a list of exercises and there descriptions
         * Log - table to log time spent on various exercises by a specific user
-* Add user authentication
 * Add a front end http interface to access the JSON methods
+    * Add user authentication
+    * Add some form of user priviledges
 
 # Status
 
@@ -25,11 +26,7 @@ Current status of work completed so far:
 * Initial http interfaces for user have been created
 * Basic login/logout with JWT authentication has been implemented.
     * JWT token stored as a cookie in the session
-* JWT secret key needs to be configurable.
-    * Consider creating a cli interface for this
 * Initial privilege support added to user structure. 
-    * Need to create an initial admin user in order for http interfaces to function.
-        * Consider creating a cli interface for this
 
 # Work outstanding
 
@@ -38,13 +35,19 @@ Current status of work completed so far:
     * Modify view such that we can use test database instead of actual database
 * Integration Level tests
 * Add more robust logging via [logrus](https://github.com/sirupsen/logrus])
+* Use of perm for controlling which github.com/enpointe/activity/view methods can be called is too simplistic. Consider alternatives like https://github.com/casbin/casbin
 * Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
-* Use https 
 * Add database configuration for security
 * Add cli interface that allows initial admin user to be created
 * Add mechanism for prepopulating database with Exercises
-* Change database methods to allow context to be passed down from view level
-* Pass in context from views level. Wrapping call.  See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
+* Examine whether view code should have some context cancel in it. See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
+* JWT secret key needs to be configurable.
+    * Consider creating a cli interface for this
+* Need to create an initial admin user in order for http interfaces to function.
+    * Consider creating a cli interface for this
+* perm authorization is a bit comberson. Consider adding a simple RBAC authorization on methods or 
+    * [Casbin](https://github.com/casbin/casbin)
+    * [goRBAC](https://github.com/mikespook/gorbac)
 
 # Prerequisite
 
@@ -72,7 +75,6 @@ This project is laid out as a Go module. As such the code cannot be installed di
 
 The code is primarily laid out in a hierachy to support the notion of Model-View-Container. 
 
-TBD
 
 # References
 * [Make yourself a Go web server with MongoDb](https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)

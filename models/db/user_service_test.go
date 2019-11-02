@@ -12,55 +12,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var TestDatabase = "testActivity"
-var TestUserFilename = "user_test.json"
+const testDatabase string = "testActivity"
+const testUserFilename string = "testdata/user_test.json"
 
-// clearUser drop all entries from the user collection
-func clearUser(t *testing.T, us *db.UserService) {
-	// Drop the user collection table
-	collection := us.Connection.Database.Collection(us.Config.CollectionName)
-	assert.Nil(t, collection.Drop(context.TODO()))
-}
+// The usernames and the passwords here correspond
+// to the username added from the testdata json file
+// to the User Collection
+const testAdminUsername string = "admin"
+const testAdminUserPassword string = "changeMe"
+const testStaffUsername string = "staff"
+const testStaffUserPassword string = "tellTheTruth"
+const testCustomerUsername string = "customer1"
+const testCustomerUserPassword string = "password"
 
 // setup Setup the database for testing by creating a connection to the
 // database and returning a handle to the UserService. If desired
 // via the clear flag the current user collection entires can be
 // dropped. Setting the load flag causes the predefined user collection
 // entires in TestUserFilename to be inserted into the user collection.
-func setupUser(t *testing.T, clear bool, load bool) *db.UserService {
+func SetupUser(t *testing.T, clear bool, load bool) *db.UserService {
 
-	config := db.Config{Database: TestDatabase}
-	us, err := db.NewUserService(&config)
-	assert.Nil(t, err)
+	config := db.Config{Database: testDatabase}
+	us, err := db.NewUserService(context.TODO(), &config)
+	assert.NoError(t, err)
 	if clear {
-		clearUser(t, us)
+		err = us.DeleteAll()
+		assert.NoError(t, err)
 	}
 	if load {
-		err = us.LoadFromFile(TestUserFilename)
-		assert.Nil(t, err, "Load of json data from %s failed", TestUserFilename)
+		err = us.LoadFromFile(testUserFilename)
+		assert.NoError(t, err, "Load of json data from %s failed", testUserFilename)
 	}
 	return us
 }
 
 // teardown - perform database teardown to ensure each
 // that the database is clean
-func teardownUser(t *testing.T, us *db.UserService) {
-	clearUser(t, us)
+func TeardownUser(t *testing.T, us *db.UserService) {
+	err := us.DeleteAll()
+	assert.NoError(t, err)
 }
 
 // TestNewUserService perform a simple instantiation test
 func TestNewUserService(t *testing.T) {
 	// Ensure that we got a handle to the service
-	config := db.Config{Database: TestDatabase}
-	ref, err := db.NewUserService(&config)
-	assert.Nil(t, err)
+	config := db.Config{Database: testDatabase}
+	ref, err := db.NewUserService(context.TODO(), &config)
+	assert.NoError(t, err)
 	assert.NotNil(t, ref)
 }
 
 // TestCreateUser test the creation of users.
 func TestCreateUser(t *testing.T) {
-	userService := setupUser(t, true, false)
-	defer teardownUser(t, userService)
+	userService := SetupUser(t, true, false)
+	defer TeardownUser(t, userService)
 
 	// Add a customer
 	user := client.User{
@@ -68,7 +73,7 @@ func TestCreateUser(t *testing.T) {
 		Password: "password",
 	}
 	err := userService.Create(&user)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Add a new staff user
 	user = client.User{
@@ -77,22 +82,22 @@ func TestCreateUser(t *testing.T) {
 		Privilege: perm.Staff.String(),
 	}
 	err = userService.Create(&user)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Attempt to add a different user
 	user = client.User{
-		Username:  "admin",
+		Username:  "altAdmin",
 		Password:  "changeMe",
 		Privilege: perm.Admin.String(),
 	}
 	err = userService.Create(&user)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 }
 
 // TestCreateDuplicatUser ensure an attempt to add a duplicate user fails
 func TestCreateDuplicateUser(t *testing.T) {
-	userService := setupUser(t, true, false)
-	defer teardownUser(t, userService)
+	userService := SetupUser(t, true, false)
+	defer TeardownUser(t, userService)
 
 	// Add a customer
 	user := client.User{
@@ -100,7 +105,7 @@ func TestCreateDuplicateUser(t *testing.T) {
 		Password: "password",
 	}
 	err := userService.Create(&user)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Attempt to add same user
 	err = userService.Create(&user)
@@ -110,10 +115,10 @@ func TestCreateDuplicateUser(t *testing.T) {
 // TestValidate ensure that a Validate correctly
 // handles a login with correct and incorrect passwords
 func TestValidate(t *testing.T) {
-	setupUser(t, true, true)
-	userService := setupUser(t, true, true)
+	SetupUser(t, true, true)
+	userService := SetupUser(t, true, true)
 
-	defer teardownUser(t, userService)
+	defer TeardownUser(t, userService)
 
 	// Attempt to login in with the proper credentials
 	// NOTE: This test will fail if the credentials
@@ -123,68 +128,72 @@ func TestValidate(t *testing.T) {
 		Password: "password",
 	}
 	user, err := userService.Validate(&credentials)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, len(user.ID) != 0)
 	assert.Equal(t, credentials.Username, user.Username)
 	assert.Equal(t, "-", user.Password)
+	assert.Equal(t, perm.Basic.String(), user.Privilege)
 
 	// Atempt to login with the improper credentials
 	credentials.Password = "wrongPassword"
 	user, err = userService.Validate(&credentials)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestGetUserByName(t *testing.T) {
-	userService := setupUser(t, true, true)
-	defer teardownUser(t, userService)
+	userService := SetupUser(t, true, true)
+	defer TeardownUser(t, userService)
 
 	// Attempt to retrieve the user populated to the user collection
-	retUser, err := userService.GetByUsername("admin")
-	assert.Equal(t, "admin", retUser.Username)
-	assert.Nil(t, err)
+	retUser, err := userService.GetByUsername(testAdminUsername)
+	assert.Equal(t, testAdminUsername, retUser.Username)
+	assert.Equal(t, perm.Admin.String(), retUser.Privilege)
+	assert.NoError(t, err)
 
-	retUser, err = userService.GetByUsername("staff")
-	assert.Equal(t, "staff", retUser.Username)
-	assert.Nil(t, err)
+	retUser, err = userService.GetByUsername(testStaffUsername)
+	assert.Equal(t, testStaffUsername, retUser.Username)
+	assert.Equal(t, perm.Staff.String(), retUser.Privilege)
+	assert.NoError(t, err)
 
-	retUser, err = userService.GetByUsername("customer1")
-	assert.Equal(t, "customer1", retUser.Username)
-	assert.Nil(t, err)
+	retUser, err = userService.GetByUsername(testCustomerUsername)
+	assert.Equal(t, testCustomerUsername, retUser.Username)
+	assert.Equal(t, perm.Basic.String(), retUser.Privilege)
+	assert.NoError(t, err)
 
 	// Attempt to retrieve a non existent user
 	retUser, err = userService.GetByUsername("noexist")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestGetAllUsers(t *testing.T) {
-	userService := setupUser(t, true, true)
-	defer teardownUser(t, userService)
+	userService := SetupUser(t, true, true)
+	defer TeardownUser(t, userService)
 
 	// Attempt to retrieve the populated users
 	users, err := userService.GetAll()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(users))
 }
 
 func TestDeleteUser(t *testing.T) {
-	userService := setupUser(t, true, true)
-	defer teardownUser(t, userService)
+	userService := SetupUser(t, true, true)
+	defer TeardownUser(t, userService)
 
 	// Attempt to delete an existing user from the database
-	user, err := userService.GetByUsername("customer1")
-	assert.Equal(t, "customer1", user.Username)
-	assert.Nil(t, err)
+	user, err := userService.GetByUsername(testCustomerUsername)
+	assert.Equal(t, testCustomerUsername, user.Username)
+	assert.NoError(t, err)
 
 	err = userService.DeleteUserData(user.ID)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Attempt to delete a non existent user
 	err = userService.DeleteUserData(primitive.NewObjectID().Hex())
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to delete")
 
 	// Attempt delete with bad ID
 	err = userService.DeleteUserData("4dddkalkdlajbeee")
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid id")
 }

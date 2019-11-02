@@ -7,10 +7,11 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/login", views.Login)
-	http.HandleFunc("/logout", views.Logout)
-	http.HandleFunc("/user/create", views.CreateUser)
-	http.HandleFunc("/user/", views.GetUser)
-	http.HandleFunc("users/", views.GetUsers)
-	http.ListenAndServe(":8080", nil)
+	activityServer := views.NewServer(views.ListenAddress(":8080"))
+	http.HandleFunc("/login", activityServer.Login)
+	http.HandleFunc("/logout", activityServer.Logout)
+	http.HandleFunc("/user/create", activityServer.CreateUser)
+	http.HandleFunc("/user/", activityServer.GetUser)
+	http.HandleFunc("users/", activityServer.GetUsers)
+	http.ListenAndServeTLS(activityServer, nil)
 }

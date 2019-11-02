@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"time"
 
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/perm"
@@ -14,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // UsersCollection name of the collection used to hold user information
@@ -22,6 +22,7 @@ const UsersCollection = "users"
 // UserService holds a entry to the User Collection in the database
 type UserService struct {
 	Config     *Config
+	context    context.Context
 	Connection *Connection
 	Collection *mongo.Collection
 }
@@ -29,7 +30,7 @@ type UserService struct {
 // NewUserService create a new instance of the User Service
 // An optional optParam may be specified
 // optParam[0] = DatabaseName
-func NewUserService(config *Config) (*UserService, error) {
+func NewUserService(ctx context.Context, config *Config) (*UserService, error) {
 	connection, err := GetConnection(config)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func NewUserService(config *Config) (*UserService, error) {
 		config.CollectionName = UsersCollection
 	}
 	collection := connection.Database.Collection(config.CollectionName)
-	return &UserService{config, connection, collection}, nil
+	return &UserService{config, ctx, connection, collection}, nil
 }
 
 // Create add a new user to the database
@@ -48,12 +49,8 @@ func (s *UserService) Create(user *client.User) error {
 		return err
 	}
 
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor := s.Collection.FindOne(context, bson.M{
+	cursor := s.Collection.FindOne(s.context, bson.M{
 		"user_id": user.Username,
 	})
 	if err = cursor.Err(); err == nil {
@@ -63,7 +60,7 @@ func (s *UserService) Create(user *client.User) error {
 		return err
 	}
 
-	_, err = s.Collection.InsertOne(context, &u)
+	_, err = s.Collection.InsertOne(s.context, &u)
 	if err != nil {
 		err = fmt.Errorf("Unable to store user data in database, %s", err)
 		log.Print(err)
@@ -76,10 +73,6 @@ func (s *UserService) Create(user *client.User) error {
 // associated information associated with that user. Once deleted
 // the information can not be recovered.
 func (s *UserService) DeleteUserData(hexid string) error {
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
 	// TODO Must add in deletes for the users exercise logs when
 	// add to project. This must be done as a transaction to ensure that
 	// we don't end up with a partial deletion of data
@@ -89,7 +82,7 @@ func (s *UserService) DeleteUserData(hexid string) error {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
 		return err
 	}
-	results, err := s.Collection.DeleteOne(context, bson.M{"_id": idPrimitive})
+	results, err := s.Collection.DeleteOne(s.context, bson.M{"_id": idPrimitive})
 	if err != nil {
 
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
@@ -101,37 +94,17 @@ func (s *UserService) DeleteUserData(hexid string) error {
 	return err
 }
 
-// GetByID retrieve the user record via the passed in username
-func (s *UserService) GetByID(id string) (*client.User, error) {
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-	idPrimitive, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		err = fmt.Errorf("invalid id %s, %s", id, err)
-		return nil, err
-	}
-	filter := bson.M{"_id": idPrimitive}
-	cursor := s.Collection.FindOne(context, filter)
-	if err := cursor.Err(); err != nil {
-		log.Printf("user '%s' not found in collection %s, %s", id, UsersCollection, err)
-		err = fmt.Errorf("user with specified id not found: %s", id)
-		return nil, err
-	}
-	var user User
-	cursor.Decode(&user)
-	cUser := user.Convert()
-	return &cUser, nil
+// DeleteAll deletes all user records
+func (s *UserService) DeleteAll() error {
+	return s.Collection.Drop(s.context)
 }
 
-// getByUsername internal method for retrieving the user record
-func (s *UserService) getByUsername(username string) (*User, error) {
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-	idDoc := bson.D{primitive.E{Key: "user_id", Value: username}}
-	cursor := s.Collection.FindOne(context, idDoc)
+// findOne internal method for retrieving the user record
+func (s *UserService) findOne(filter interface{}) (*User, error) {
+	cursor := s.Collection.FindOne(s.context, filter)
 	if err := cursor.Err(); err != nil {
-		log.Printf("user '%s' not found in collection %s, %s", username, UsersCollection, err)
-		err = fmt.Errorf("user with specified username not found: %s", username)
+		log.Printf("user not found, %s", err)
+		err = fmt.Errorf("user not found")
 		return nil, err
 	}
 	var user User
@@ -139,9 +112,37 @@ func (s *UserService) getByUsername(username string) (*User, error) {
 	return &user, nil
 }
 
+// AdminUserExists basic test to ensure at a minimum one
+// admin account exists
+func (s *UserService) AdminUserExists() (bool, error) {
+	filter := bson.M{"privilege": perm.Admin}
+	user, err := s.findOne(filter)
+	if err != nil {
+		return false, err
+	}
+	return user != nil, nil
+}
+
+// GetByID retrieve the user record via the passed in username
+func (s *UserService) GetByID(id string) (*client.User, error) {
+	idPrimitive, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		err = fmt.Errorf("invalid id %s, %s", id, err)
+		return nil, err
+	}
+	filter := bson.M{"_id": idPrimitive}
+	user, err := s.findOne(filter)
+	if err != nil {
+		return nil, err
+	}
+	cUser := user.Convert()
+	return &cUser, nil
+}
+
 // GetByUsername retrieve the user record via the passed in username
 func (s *UserService) GetByUsername(username string) (*client.User, error) {
-	user, err := s.getByUsername(username)
+	filter := bson.D{primitive.E{Key: "user_id", Value: username}}
+	user, err := s.findOne(filter)
 	if err != nil {
 		return nil, err
 	}
@@ -151,23 +152,18 @@ func (s *UserService) GetByUsername(username string) (*client.User, error) {
 
 // GetAll return information about all users
 func (s *UserService) GetAll() ([]*client.User, error) {
-
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
 	var results []*client.User
 
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor, err := s.Collection.Find(context, bson.D{{}})
+	cursor, err := s.Collection.Find(s.context, bson.D{{}})
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context)
+	defer cursor.Close(s.context)
 
 	// Finding multiple documents returns a cursor
 	// Iterating through the cursor allows us to decode documents one at a time
-	for cursor.Next(context) {
+	for cursor.Next(s.context) {
 
 		// create a value into which the single document can be decoded
 		var elem User
@@ -196,10 +192,6 @@ func (s *UserService) GetAll() ([]*client.User, error) {
 // Update update the user record represented by u.ID.
 // Only the Username, Password, and Privilege fields may be updated
 func (s *UserService) Update(u *client.User) error {
-
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
 	idPrimitive, err := primitive.ObjectIDFromHex(u.ID)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", u.ID, err)
@@ -211,7 +203,7 @@ func (s *UserService) Update(u *client.User) error {
 		"password":  u.Password,
 		"privilege": perm.Convert(u.Privilege),
 	}}
-	updateResult, err := s.Collection.UpdateOne(context, filter, update)
+	updateResult, err := s.Collection.UpdateOne(s.context, filter, update)
 	if err != nil {
 		err = fmt.Errorf("failed to update user %s, %s", u.ID, err)
 		return err
@@ -225,7 +217,9 @@ func (s *UserService) Update(u *client.User) error {
 
 // Validate validate the credentials of the user
 func (s *UserService) Validate(c *client.Credentials) (*client.User, error) {
-	user, err := s.getByUsername(c.Username)
+
+	filter := bson.D{primitive.E{Key: "user_id", Value: c.Username}}
+	user, err := s.findOne(filter)
 	if err != nil {
 		return nil, fmt.Errorf("invalid username/password")
 	}
@@ -264,6 +258,8 @@ func (s *UserService) LoadFromFile(filename string) error {
 		userToAdd = append(userToAdd, u)
 	}
 	// Insert users into DB
-	_, err = s.Collection.InsertMany(context.Background(), userToAdd)
+	ordered := false
+	insertOptions := &options.InsertManyOptions{Ordered: &ordered}
+	_, err = s.Collection.InsertMany(s.context, userToAdd, insertOptions)
 	return err
 }

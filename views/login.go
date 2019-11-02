@@ -1,6 +1,7 @@
 package views
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
+	"github.com/enpointe/activity/perm"
 )
 
 const jwtExpirySeconds = 1200
@@ -16,9 +18,16 @@ const jwtExpirySeconds = 1200
 // TODO - allow jwtKey to be set via CLI interface
 var jwtKey = []byte("my_secret_key")
 
+type activityClaims struct {
+	ID        string
+	Username  string
+	Privilege perm.Privilege
+	jwt.StandardClaims
+}
+
 // Login interface for allowing the user to acquire authorization
 // to execute methods for this application
-func Login(response http.ResponseWriter, request *http.Request) {
+func (s *NewServer) Login(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
 		log.Printf("unauthorized GET login attempt")
@@ -33,9 +42,9 @@ func Login(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-
-	config := db.Config{}
-	userService, err := db.NewUserService(&config)
+	context, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
+	defer cancel()
+	userService, err := db.NewUserService(context, &s.Config)
 	clientUser, err := userService.Validate(&creds)
 	if err != nil {
 		log.Printf("Credentials didn't validate")
@@ -47,9 +56,10 @@ func Login(response http.ResponseWriter, request *http.Request) {
 	// here, we have kept it as expireTime minutes
 	expirationTime := time.Now().Add(time.Duration(jwtExpirySeconds) * time.Second)
 	// Create the JWT claims, which includes the username and expiry time
-	claims := &Claims{
-		ID:       clientUser.ID,
-		Username: creds.Username,
+	claims := &activityClaims{
+		ID:        clientUser.ID,
+		Username:  clientUser.Username,
+		Privilege: perm.Convert(clientUser.Privilege),
 		StandardClaims: jwt.StandardClaims{
 			// In JWT, the expiry time is expressed as unix milliseconds
 			ExpiresAt: expirationTime.Unix(),

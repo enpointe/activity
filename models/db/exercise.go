@@ -9,7 +9,7 @@ import (
 
 // Exercise represents information for a type of exercise
 type Exercise struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"_id,omitempty"`
+	ID          primitive.ObjectID `bson:"_id,unique,omitempty" json:"_id,omitempty"`
 	Name        string             `bson:"name,omitempty" json:"name,omitempty"`
 	Description string             `bson:"description,omitempty" json:"description"`
 }

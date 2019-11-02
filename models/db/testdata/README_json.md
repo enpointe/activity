@@ -17,7 +17,7 @@ entries with the following field settings
 | Username | Password     | Privilege |
 | -------- | ------------ | --------- |
 | customer1| password     | basic     |
-| staff1   | tellTheTruth | staff     |
+| staff    | tellTheTruth | staff     |
 | admin    | changeMe     | admin     |
 
 # Exercise Collection Data

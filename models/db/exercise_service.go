@@ -13,10 +13,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ExerciseCollection name of the collection used to hold exercise information
-const ExerciseCollection = "exercises"
+const ExerciseCollection = "testdata/exercises"
 
 // ExerciseService holds a entry to the Exercise Collection in the database
 type ExerciseService struct {
@@ -87,6 +88,11 @@ func (s *ExerciseService) Delete(hexid string) error {
 		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
 	}
 	return err
+}
+
+// DeleteAll deletes all exercise records
+func (s *ExerciseService) DeleteAll() error {
+	return s.Collection.Drop(context.TODO())
 }
 
 // Update update an existing exercise. Only the name and/or description
@@ -218,6 +224,8 @@ func (s *ExerciseService) LoadFromFile(filename string) error {
 		exercisesToAdd = append(exercisesToAdd, e)
 	}
 	// Insert exercise into DB
-	_, err = s.Collection.InsertMany(context.Background(), exercisesToAdd)
+	ordered := false
+	insertOptions := &options.InsertManyOptions{Ordered: &ordered}
+	_, err = s.Collection.InsertMany(context.Background(), exercisesToAdd, insertOptions)
 	return err
 }
