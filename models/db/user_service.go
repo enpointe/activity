@@ -21,36 +21,27 @@ const UsersCollection = "users"
 
 // UserService holds a entry to the User Collection in the database
 type UserService struct {
-	Config     *Config
-	context    context.Context
-	Connection *Connection
 	Collection *mongo.Collection
 }
 
 // NewUserService create a new instance of the User Service
 // An optional optParam may be specified
 // optParam[0] = DatabaseName
-func NewUserService(ctx context.Context, config *Config) (*UserService, error) {
-	connection, err := GetConnection(config)
-	if err != nil {
-		return nil, err
-	}
-	if len(config.CollectionName) == 0 {
-		config.CollectionName = UsersCollection
-	}
-	collection := connection.Database.Collection(config.CollectionName)
-	return &UserService{config, ctx, connection, collection}, nil
+func NewUserService(database *mongo.Database) (*UserService, error) {
+	collection := database.Collection(UsersCollection)
+	return &UserService{
+		Collection: collection}, nil
 }
 
 // Create add a new user to the database
-func (s *UserService) Create(user *client.User) error {
+func (s *UserService) Create(ctx context.Context, user *client.User) error {
 	u, err := NewUser(user)
 	if err != nil {
 		return err
 	}
 
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor := s.Collection.FindOne(s.context, bson.M{
+	cursor := s.Collection.FindOne(ctx, bson.M{
 		"user_id": user.Username,
 	})
 	if err = cursor.Err(); err == nil {
@@ -60,7 +51,7 @@ func (s *UserService) Create(user *client.User) error {
 		return err
 	}
 
-	_, err = s.Collection.InsertOne(s.context, &u)
+	_, err = s.Collection.InsertOne(ctx, &u)
 	if err != nil {
 		err = fmt.Errorf("Unable to store user data in database, %s", err)
 		log.Print(err)
@@ -72,17 +63,18 @@ func (s *UserService) Create(user *client.User) error {
 // DeleteUserData deletes the user associated with id and all
 // associated information associated with that user. Once deleted
 // the information can not be recovered.
-func (s *UserService) DeleteUserData(hexid string) error {
+func (s *UserService) DeleteUserData(ctx context.Context, hexid string) error {
 	// TODO Must add in deletes for the users exercise logs when
 	// add to project. This must be done as a transaction to ensure that
 	// we don't end up with a partial deletion of data
+	//
 
 	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
 		return err
 	}
-	results, err := s.Collection.DeleteOne(s.context, bson.M{"_id": idPrimitive})
+	results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
 	if err != nil {
 
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
@@ -95,13 +87,13 @@ func (s *UserService) DeleteUserData(hexid string) error {
 }
 
 // DeleteAll deletes all user records
-func (s *UserService) DeleteAll() error {
-	return s.Collection.Drop(s.context)
+func (s *UserService) DeleteAll(ctx context.Context) error {
+	return s.Collection.Drop(ctx)
 }
 
 // findOne internal method for retrieving the user record
-func (s *UserService) findOne(filter interface{}) (*User, error) {
-	cursor := s.Collection.FindOne(s.context, filter)
+func (s *UserService) findOne(ctx context.Context, filter interface{}) (*User, error) {
+	cursor := s.Collection.FindOne(ctx, filter)
 	if err := cursor.Err(); err != nil {
 		log.Printf("user not found, %s", err)
 		err = fmt.Errorf("user not found")
@@ -114,9 +106,9 @@ func (s *UserService) findOne(filter interface{}) (*User, error) {
 
 // AdminUserExists basic test to ensure at a minimum one
 // admin account exists
-func (s *UserService) AdminUserExists() (bool, error) {
+func (s *UserService) AdminUserExists(ctx context.Context) (bool, error) {
 	filter := bson.M{"privilege": perm.Admin}
-	user, err := s.findOne(filter)
+	user, err := s.findOne(ctx, filter)
 	if err != nil {
 		return false, err
 	}
@@ -124,14 +116,14 @@ func (s *UserService) AdminUserExists() (bool, error) {
 }
 
 // GetByID retrieve the user record via the passed in username
-func (s *UserService) GetByID(id string) (*client.User, error) {
+func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", id, err)
 		return nil, err
 	}
 	filter := bson.M{"_id": idPrimitive}
-	user, err := s.findOne(filter)
+	user, err := s.findOne(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -140,9 +132,9 @@ func (s *UserService) GetByID(id string) (*client.User, error) {
 }
 
 // GetByUsername retrieve the user record via the passed in username
-func (s *UserService) GetByUsername(username string) (*client.User, error) {
+func (s *UserService) GetByUsername(ctx context.Context, username string) (*client.User, error) {
 	filter := bson.D{primitive.E{Key: "user_id", Value: username}}
-	user, err := s.findOne(filter)
+	user, err := s.findOne(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -150,26 +142,31 @@ func (s *UserService) GetByUsername(username string) (*client.User, error) {
 	return &cUser, nil
 }
 
-// GetAll return information about all users
-func (s *UserService) GetAll() ([]*client.User, error) {
+// GetAll return information about all users. Password
+// information for each user will simply be returned as "-"
+func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 	var results []*client.User
 
-	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor, err := s.Collection.Find(s.context, bson.D{{}})
+	// Set the projection for the request to not
+	// return the password field.
+	projection := bson.D{primitive.E{Key: "password", Value: 0}}
+	cursor, err := s.Collection.Find(ctx,
+		bson.D{{}},
+		options.Find().SetProjection(projection))
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(s.context)
+	defer cursor.Close(ctx)
 
 	// Finding multiple documents returns a cursor
 	// Iterating through the cursor allows us to decode documents one at a time
-	for cursor.Next(s.context) {
+	for cursor.Next(ctx) {
 
 		// create a value into which the single document can be decoded
 		var elem User
 		err := cursor.Decode(&elem)
 		if err != nil {
-			log.Printf("GetAll: failed to decode %s", elem)
+			log.Printf("failed to decode %s", elem)
 			return nil, err
 		}
 
@@ -191,7 +188,7 @@ func (s *UserService) GetAll() ([]*client.User, error) {
 
 // Update update the user record represented by u.ID.
 // Only the Username, Password, and Privilege fields may be updated
-func (s *UserService) Update(u *client.User) error {
+func (s *UserService) Update(ctx context.Context, u *client.User) error {
 	idPrimitive, err := primitive.ObjectIDFromHex(u.ID)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", u.ID, err)
@@ -203,9 +200,10 @@ func (s *UserService) Update(u *client.User) error {
 		"password":  u.Password,
 		"privilege": perm.Convert(u.Privilege),
 	}}
-	updateResult, err := s.Collection.UpdateOne(s.context, filter, update)
+	updateResult, err := s.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		err = fmt.Errorf("failed to update user %s, %s", u.ID, err)
+		log.Print(err)
 		return err
 	}
 	if updateResult.ModifiedCount != 1 {
@@ -216,10 +214,10 @@ func (s *UserService) Update(u *client.User) error {
 }
 
 // Validate validate the credentials of the user
-func (s *UserService) Validate(c *client.Credentials) (*client.User, error) {
+func (s *UserService) Validate(ctx context.Context, c *client.Credentials) (*client.User, error) {
 
 	filter := bson.D{primitive.E{Key: "user_id", Value: c.Username}}
-	user, err := s.findOne(filter)
+	user, err := s.findOne(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("invalid username/password")
 	}
@@ -236,7 +234,7 @@ func (s *UserService) Validate(c *client.Credentials) (*client.User, error) {
 // If the ID field of the user data is not set, ie ObjectID.IsZero(),
 // a new ObjectID will be created for the user. The form of the json
 // file is compatible with mongoexport --type json --jsonArray
-func (s *UserService) LoadFromFile(filename string) error {
+func (s *UserService) LoadFromFile(ctx context.Context, filename string) error {
 	// Load values from JSON file to model
 	byteValues, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -247,7 +245,6 @@ func (s *UserService) LoadFromFile(filename string) error {
 	if err != nil {
 		return err
 	}
-	log.Print(users)
 	var userToAdd []interface{}
 	for _, u := range users {
 		// Check to see if the ID field is set. If not set it
@@ -260,6 +257,6 @@ func (s *UserService) LoadFromFile(filename string) error {
 	// Insert users into DB
 	ordered := false
 	insertOptions := &options.InsertManyOptions{Ordered: &ordered}
-	_, err = s.Collection.InsertMany(s.context, userToAdd, insertOptions)
+	_, err = s.Collection.InsertMany(ctx, userToAdd, insertOptions)
 	return err
 }

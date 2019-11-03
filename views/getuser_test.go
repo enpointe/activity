@@ -6,17 +6,13 @@ import (
 	"testing"
 
 	"github.com/enpointe/activity/models/client"
-	"github.com/enpointe/activity/models/db"
-	"github.com/enpointe/activity/views"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestGetUserFailures test GetUser for general non permission failure scenarios
 func TestGetUserFailures(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testMultiUserFilenameJSON)
-	defer teardown(t, &databaseConfig)
-	server := views.NewServerService(views.DBConfig(databaseConfig))
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
 	creds := client.Credentials{Username: testAdmin1Username, Password: testAdmin1UserPassword}
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
@@ -46,10 +42,8 @@ func TestGetUserFailures(t *testing.T) {
 
 // TestGetUserViaAdmin test GetUser using a user with perm.ADMIN privileges
 func TestGetUserViaAdmin(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testMultiUserFilenameJSON)
-	defer teardown(t, &databaseConfig)
-	server := views.NewServerService(views.DBConfig(databaseConfig))
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
 	creds := client.Credentials{Username: testAdmin1Username, Password: testAdmin1UserPassword}
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
@@ -86,10 +80,8 @@ func TestGetUserViaAdmin(t *testing.T) {
 
 // TestGetUserViaStaff test GetUser using a user with perm.STAFF privileges
 func TestGetUserViaStaff(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testMultiUserFilenameJSON)
-	defer teardown(t, &databaseConfig)
-	server := views.NewServerService(views.DBConfig(databaseConfig))
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
 	creds := client.Credentials{Username: testStaff1Username, Password: testStaff1UserPassword}
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
@@ -119,10 +111,8 @@ func TestGetUserViaStaff(t *testing.T) {
 
 // TestGetUserViaBasicr test GetUser using the basic privilege user
 func TestGetUserViaBasic(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testMultiUserFilenameJSON)
-	defer teardown(t, &databaseConfig)
-	server := views.NewServerService(views.DBConfig(databaseConfig))
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
 	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)

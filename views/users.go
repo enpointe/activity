@@ -8,6 +8,7 @@ package views
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -17,12 +18,23 @@ import (
 	"github.com/enpointe/activity/perm"
 )
 
+func errorWithJSON(response http.ResponseWriter, message string, code int) {
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	response.WriteHeader(code)
+	fmt.Fprintf(response, `{ "message": "%q" }`, message)
+}
+
+func responseWithJSON(response http.ResponseWriter, json []byte, code int) {
+	response.Header().Set("Content-Type", "application/json; charset=utf-8")
+	response.WriteHeader(code)
+	response.Write(json)
+}
+
 // CreateUser create a user and add it to our list of known users
-func (s *NewServer) CreateUser(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
-		response.WriteHeader(http.StatusMethodNotAllowed)
-		response.Write([]byte(`{ "message": "` + http.StatusText(http.StatusMethodNotAllowed) + `" }`))
+		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 	claims, httpStatus := validateClaim(response, request)
@@ -40,21 +52,20 @@ func (s *NewServer) CreateUser(response http.ResponseWriter, request *http.Reque
 	var user client.User
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
-		response.WriteHeader(http.StatusBadRequest)
-		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		errorWithJSON(response, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	context, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(context, &s.Config)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
 	}
 
-	err = userService.Create(&user)
+	err = userService.Create(ctx, &user)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -64,7 +75,7 @@ func (s *NewServer) CreateUser(response http.ResponseWriter, request *http.Reque
 }
 
 // GetUser return stored information for a specific user
-func (s *NewServer) GetUser(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "GET" {
 		response.WriteHeader(http.StatusMethodNotAllowed)
@@ -90,7 +101,7 @@ func (s *NewServer) GetUser(response http.ResponseWriter, request *http.Request)
 
 	// Only allow operation if perm.ADMIN or perm.ADMIN
 	// or perm.BASIC and user is requesting details about themselves
-	if !claims.Privilege.Grants(perm.Staff) { 
+	if !claims.Privilege.Grants(perm.Staff) {
 		// This operation is allows with perm.Basic if the
 		// user is requesting data about themselves
 		if claims.Username != username {
@@ -99,15 +110,15 @@ func (s *NewServer) GetUser(response http.ResponseWriter, request *http.Request)
 		}
 	}
 
-	context, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(context, &s.Config)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
 	}
-	user, err := userService.GetByUsername(username)
+	user, err := userService.GetByUsername(ctx, username)
 	if err != nil {
 		response.WriteHeader(http.StatusBadRequest)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -119,7 +130,7 @@ func (s *NewServer) GetUser(response http.ResponseWriter, request *http.Request)
 }
 
 // GetUsers return information about all known users
-func (s *NewServer) GetUsers(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "GET" {
 		response.WriteHeader(http.StatusMethodNotAllowed)
@@ -140,15 +151,15 @@ func (s *NewServer) GetUsers(response http.ResponseWriter, request *http.Request
 		return
 	}
 
-	context, cancel := context.WithTimeout(context.TODO(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 120*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(context, &s.Config)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 		return
 	}
-	user, err := userService.GetAll()
+	user, err := userService.GetAll(ctx)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))

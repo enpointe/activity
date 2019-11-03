@@ -12,6 +12,7 @@ import (
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/views"
 	"github.com/stretchr/testify/assert"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const testDatabase string = "Activity_HTTP_Test"
@@ -38,26 +39,34 @@ const testBasic2UserPassword string = testAdmin1UserPassword
 // via the clear flag the current user collection entires can be
 // dropped. Setting the load flag causes the predefined user collection
 // entires in TestUserFilename to be inserted into the user collection.
-func setup(t *testing.T, config *db.Config, userLoadFile string) {
-	service, err := db.NewUserService(context.TODO(), config)
+func setup(t *testing.T, userLoadFile string) *views.ServerService {
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	opt := views.DBOptions(clientOptions)
+
+	// We need to have at least one admin user present in our database
+	// to proceed.
+
+	server, err := views.NewServerService(true, opt, views.DBName(testDatabase))
 	assert.NoError(t, err)
-	err = service.DeleteAll()
+	err = server.DeleteAll()
 	assert.NoError(t, err)
-	err = service.LoadFromFile(userLoadFile)
+	uService, err := db.NewUserService(server.Database)
+	assert.NoError(t, err)
+	err = uService.LoadFromFile(context.TODO(), userLoadFile)
 	assert.NoErrorf(t, err, "Error loading file %s", userLoadFile)
+	return server
 }
 
 // teardown - perform database teardown to ensure each
 // that the database is clean
-func teardown(t *testing.T, config *db.Config) {
-	userService, err := db.NewUserService(context.TODO(), config)
-	err = userService.DeleteAll()
+func teardown(t *testing.T, server *views.ServerService) {
+	err := server.DeleteAll()
 	assert.NoError(t, err)
 }
 
 // login helper function that logs the specified user in and
 // returns the JWT authentication token to use on subsequent request
-func login(t *testing.T, server *views.NewServer, creds client.Credentials) *http.Cookie {
+func login(t *testing.T, server *views.ServerService, creds client.Credentials) *http.Cookie {
 	requestBody, err := json.Marshal(map[string]string{
 		"username": creds.Username,
 		"password": creds.Password,
@@ -81,7 +90,7 @@ func login(t *testing.T, server *views.NewServer, creds client.Credentials) *htt
 }
 
 // logout logs the user out
-func logout(t *testing.T, server *views.NewServer, tokenCookie *http.Cookie) {
+func logout(t *testing.T, server *views.ServerService, tokenCookie *http.Cookie) {
 	request := httptest.NewRequest("POST", "http://logout", nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
@@ -90,22 +99,18 @@ func logout(t *testing.T, server *views.NewServer, tokenCookie *http.Cookie) {
 }
 
 func TestLoginLogout(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testAdminFilenameJSON)
-	defer teardown(t, &databaseConfig)
-	server := views.NewServerService(views.DBConfig(databaseConfig))
+	server := setup(t, testAdminFilenameJSON)
+	defer teardown(t, server)
 	creds := client.Credentials{Username: testAdmin1Username, Password: testAdmin1UserPassword}
 	tokenCookie := login(t, server, creds)
 	logout(t, server, tokenCookie)
 }
 
 func TestInvalidLogin(t *testing.T) {
-	databaseConfig := db.Config{Database: testDatabase}
-	setup(t, &databaseConfig, testAdminFilenameJSON)
-	defer teardown(t, &databaseConfig)
+	server := setup(t, testAdminFilenameJSON)
+	defer teardown(t, server)
 
 	// Test bad username
-	activityServer := views.NewServerService(views.DBConfig(databaseConfig))
 	requestBody, err := json.Marshal(map[string]string{
 		"username": "badUser",
 		"password": "",
@@ -113,11 +118,10 @@ func TestInvalidLogin(t *testing.T) {
 	assert.NoError(t, err)
 	request := httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
 	response := httptest.NewRecorder()
-	activityServer.Login(response, request)
+	server.Login(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Test bad password
-	activityServer = views.NewServerService(views.DBConfig(databaseConfig))
 	requestBody, err = json.Marshal(map[string]string{
 		"username": testAdmin1Username,
 		"password": "badPassword",
@@ -125,11 +129,10 @@ func TestInvalidLogin(t *testing.T) {
 	assert.NoError(t, err)
 	request = httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
 	response = httptest.NewRecorder()
-	activityServer.Login(response, request)
+	server.Login(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Test GET request instead of a POST
-	activityServer = views.NewServerService(views.DBConfig(databaseConfig))
 	requestBody, err = json.Marshal(map[string]string{
 		"username": testAdmin1Username,
 		"password": "badPassword",
@@ -137,6 +140,6 @@ func TestInvalidLogin(t *testing.T) {
 	assert.NoError(t, err)
 	request = httptest.NewRequest("GET", "http://login", bytes.NewBuffer(requestBody))
 	response = httptest.NewRecorder()
-	activityServer.Login(response, request)
+	server.Login(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }

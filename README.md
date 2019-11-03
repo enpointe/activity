@@ -48,11 +48,13 @@ Current status of work completed so far:
 * perm authorization is a bit comberson. Consider adding a simple RBAC authorization on methods or 
     * [Casbin](https://github.com/casbin/casbin)
     * [goRBAC](https://github.com/mikespook/gorbac)
+* models/db - user_service.go - DeleteUserData. This routine needs to remove all
+   data associated with the user. This will need to be done as a transaction.
+   [See Mongo-Driver Transaction Example - UpdateEmployeeInfo line 1742](https://github.com/mongodb/mongo-go-driver/blob/master/examples/documentation_examples/examples.go)
 
 # Prerequisite
 
-As this tools uses MongoDB it will be necessary to install and start the mongod server. The following schema opperations will need to be executed
-in order to ensure things are setup properly
+As this tools uses MongoDB it will be necessary to install and start the mongod server. The following schema opperations will need to be executed in order to ensure things are setup properly
 
 ```
 $ mongod
@@ -67,6 +69,13 @@ $ mongod
 
 As all the components for this project have not been completed it will be necessary to prestub the database initially
 This can be done via 
+
+# Usage
+
+Ensure that the MongoDB database is up and running. At the current time the work to configure access control to the server has not been implemented. As such it must be available via the simplist URL of
+
+```
+```
 
 
 # Project Structure

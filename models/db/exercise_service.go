@@ -32,10 +32,7 @@ func NewExerciseService(config *Config) (*ExerciseService, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(config.CollectionName) == 0 {
-		config.CollectionName = ExerciseCollection
-	}
-	collection := connection.Database.Collection(config.CollectionName)
+	collection := connection.Database.Collection(ExerciseCollection)
 	return &ExerciseService{config, connection, collection}, nil
 }
 

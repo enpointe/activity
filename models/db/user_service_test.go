@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testDatabaseURL = "mongodb://localhost:27017"
 const testDatabase string = "testActivity"
 const testUserFilename string = "testdata/user_test.json"
 
@@ -31,8 +32,14 @@ const testCustomerUserPassword string = "password"
 // dropped. Setting the load flag causes the predefined user collection
 // entires in TestUserFilename to be inserted into the user collection.
 func SetupUser(t *testing.T, clear bool, load bool) *db.UserService {
-
-	config := db.Config{Database: testDatabase}
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	
+	// Connect to MongoDB
+	client, err := mongo.Connect(context.TODO(), clientOptions)
+	assert.NoError(err)
+	
+	config := db.Config{Database: testDatabase, URL}
+	client := mongo.
 	us, err := db.NewUserService(context.TODO(), &config)
 	assert.NoError(t, err)
 	if clear {

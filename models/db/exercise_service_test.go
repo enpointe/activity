@@ -16,7 +16,7 @@ var TestExerciseFilename = "testdata/exercise_test.json"
 // ClearExercise drop all entries from the Exercise collection
 func clearExercise(t *testing.T, ex *db.ExerciseService) {
 	// Drop the Exercise collection table
-	collection := ex.Connection.Database.Collection(ex.Config.CollectionName)
+	collection := ex.Connection.Database.Collection(db.ExerciseCollection)
 	assert.Nil(t, collection.Drop(context.TODO()))
 }
 

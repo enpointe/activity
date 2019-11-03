@@ -16,7 +16,7 @@ var usernameCheck = regexp.MustCompile(`^[A-Za-z0-9_-]{4,16}$`).MatchString
 
 // User privileges information
 type User struct {
-	ID        primitive.ObjectID `bson:"_id,unique" json:"_id,omitempty"`
+	ID        primitive.ObjectID `bson:"_id,unique,omitempty" json:"_id,omitempty"`
 	Username  string             `bson:"user_id,unique,omitempty" json:"user_id,omitempty"`
 	Password  string             `bson:"password,omitempty" json:"password,omitempty"`
 	Privilege perm.Privilege     `bson:"privilege,omitempty" json:"privilege,omitempty"` // admin, staff, user

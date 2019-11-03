@@ -27,7 +27,7 @@ type activityClaims struct {
 
 // Login interface for allowing the user to acquire authorization
 // to execute methods for this application
-func (s *NewServer) Login(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
 		log.Printf("unauthorized GET login attempt")
@@ -42,10 +42,11 @@ func (s *NewServer) Login(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	context, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(context, &s.Config)
-	clientUser, err := userService.Validate(&creds)
+
+	userService, err := db.NewUserService(s.Database)
+	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
 		log.Printf("Credentials didn't validate")
 		response.WriteHeader(http.StatusUnauthorized)

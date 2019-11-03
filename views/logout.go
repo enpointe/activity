@@ -6,7 +6,7 @@ import (
 )
 
 // Logout log the user out deleting all cookies associated with session
-func (s *NewServer) Logout(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) Logout(response http.ResponseWriter, request *http.Request) {
 
 	response.Header().Set("content-type", "application/json")
 	_, httpStatus := validateClaim(response, request)
