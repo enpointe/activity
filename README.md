@@ -1,11 +1,12 @@
 
 # Version 2.0 (In development)
 
-This is a rework/expansion of the version 1.0 implementation of this activity logger which was written as a take home project for a job interview.
+This is a rework/expansion of the version 1.0 implementation of this activity logger which was written 
+as a take home project for a job interview.
 
-This project is primarily intended as a learning exercise to learn how to program in Golang.
+This project is primarily intended as a exercise in Go Programing
 
-In order to make the origional project a bit more interesting the overall project is being expanded to include
+In order to make the origional project a bit more interesting the overall project has been expanded to include
 
 * Add backend storage using MongoDB
     * Three database tables are being added
@@ -26,19 +27,14 @@ Current status of work completed so far:
 * Initial http interfaces for user have been created
 * Basic login/logout with JWT authentication has been implemented.
     * JWT token stored as a cookie in the session
-* Initial privilege support added to user structure. 
 
 # Work outstanding
 
 * Improve unit test
     * Investigate how to mock database calls
-    * Modify view such that we can use test database instead of actual database
-* Integration Level tests
-* Add more robust logging via [logrus](https://github.com/sirupsen/logrus])
-* Use of perm for controlling which github.com/enpointe/activity/view methods can be called is too simplistic. Consider alternatives like https://github.com/casbin/casbin
+* Integration Level testing
 * Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
 * Add database configuration for security
-* Add cli interface that allows initial admin user to be created
 * Add mechanism for prepopulating database with Exercises
 * Examine whether view code should have some context cancel in it. See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
 * JWT secret key needs to be configurable.
@@ -51,38 +47,63 @@ Current status of work completed so far:
 * models/db - user_service.go - DeleteUserData. This routine needs to remove all
    data associated with the user. This will need to be done as a transaction.
    [See Mongo-Driver Transaction Example - UpdateEmployeeInfo line 1742](https://github.com/mongodb/mongo-go-driver/blob/master/examples/documentation_examples/examples.go)
+* models/db - user_service.go - Create is not multi request safe.  
+See TODO note
+* Document REST Api methods. Consider using [Swagger](https://towardsdatascience.com/setting-up-swagger-docs-for-golang-api-8d0442263641)
 
 # Prerequisite
 
-As this tools uses MongoDB it will be necessary to install and start the mongod server. The following schema opperations will need to be executed in order to ensure things are setup properly
+As this tools uses MongoDB it will be necessary to install and start the mongod server before executing the application or
+running any tests. Currently the server needs to be accessible via 'mongodb://localhost:27017'. This change as
+features and options are added to this project.
 
+Start the MongoDB database
 ```
 $ mongod
 ```
 
-Start the server.  The server needs to be accessible via mongodb://localhost:27017
+# Building
+
+A convience Makefile is provided to build the application.
 
 ```
-$ mongod
-```
-
-
-As all the components for this project have not been completed it will be necessary to prestub the database initially
-This can be done via 
-
-# Usage
-
-Ensure that the MongoDB database is up and running. At the current time the work to configure access control to the server has not been implemented. As such it must be available via the simplist URL of
-
-```
+$ make
 ```
 
 
+# Starting the Activity Server
+
+1. Ensure the MongoDB server is running and available on the URL, mongodb://localhost:27017
+2. If starting the server for the first time it will be necessary to create a Administrative user, "admin".  This
+can be done via the "--admin <password>" flag to the activity server. Where password represent the password to
+set for the administrative user.
+3. Start the activity server
+
+
+```
+$ activity 
+```
+
+or 
+
+```
+$ activity -admin <password>
+```
+
+# HTTP Usage
+
+The following is a quick overview of running some of the current available commands. A more detail 
 # Project Structure
 
-This project is laid out as a Go module. As such the code cannot be installed directly inside the $GOPATH workarea. 
+This project is laid out as a Go module. 
 
 The code is primarily laid out in a hierachy to support the notion of Model-View-Container. 
+
+* models/client - Interfaces for returning data to the client
+* models/db - Interfaces for reading and writing to the
+* perm - Basic permissions for operations. The current setup is limited in scope and not implemented
+    throught the project. It will be replaced by something more appropriate
+* views - Interfaces to be used by the web server
 
 
 # References

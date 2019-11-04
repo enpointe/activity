@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
-	"time"
 
 	"github.com/enpointe/activity/models/client"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,69 +16,58 @@ import (
 )
 
 // ExerciseCollection name of the collection used to hold exercise information
-const ExerciseCollection = "testdata/exercises"
+const ExerciseCollection = "testdata/exercise s"
 
 // ExerciseService holds a entry to the Exercise Collection in the database
 type ExerciseService struct {
-	Config     *Config
-	Connection *Connection
 	Collection *mongo.Collection
+	log        *log.Logger
 }
 
 // NewExerciseService create a new instance of the Exercise Service
-func NewExerciseService(config *Config) (*ExerciseService, error) {
-	connection, err := GetConnection(config)
-	if err != nil {
-		return nil, err
-	}
-	collection := connection.Database.Collection(ExerciseCollection)
-	return &ExerciseService{config, connection, collection}, nil
+func NewExerciseService(database *mongo.Database, logger *log.Logger) (*ExerciseService, error) {
+	collection := database.Collection(ExerciseCollection)
+	return &ExerciseService{
+		Collection: collection, log: logger}, nil
 }
 
 // Create adds a new exercise to the database
-func (s *ExerciseService) Create(ex *client.Exercise) error {
+func (s *ExerciseService) Create(ctx context.Context, ex *client.Exercise) error {
 	if len(strings.TrimSpace(ex.Name)) == 0 {
 		err := fmt.Errorf("exercise name must be specified")
 		return err
 	}
 	exercise := NewExercise(ex)
 
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
 	// Check to make sure a exercise with the specified exercise name doesn't already exist
-	cursor := s.Collection.FindOne(context, bson.M{"name": exercise.Name})
+	cursor := s.Collection.FindOne(ctx, bson.M{"name": exercise.Name})
 	if err := cursor.Err(); err == nil {
 		// A match for that user already exists
 		err = fmt.Errorf("A entry matching the exercise name '%s' already exists", exercise.Name)
-		log.Print(err)
+		s.log.Debug(err)
 		return err
 	}
 
-	_, err := s.Collection.InsertOne(context, &exercise)
+	_, err := s.Collection.InsertOne(ctx, &exercise)
 	if err != nil {
-		log.Printf("Insert of %s failed, %s", exercise.Name, err)
+		s.log.Errorf("Insert of %s failed, %s", exercise.Name, err)
 	}
 	return err
 }
 
 // Delete remove the exercise with the specified id from the database
-func (s *ExerciseService) Delete(hexid string) error {
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
+func (s *ExerciseService) Delete(ctx context.Context, hexid string) error {
 
 	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
 		return err
 	}
-	results, err := s.Collection.DeleteOne(context, bson.M{"_id": idPrimitive})
+	results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
 	if err != nil {
 
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
-		log.Print(err)
+		s.log.Error(err)
 	}
 	if results.DeletedCount == 0 {
 		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
@@ -88,16 +76,13 @@ func (s *ExerciseService) Delete(hexid string) error {
 }
 
 // DeleteAll deletes all exercise records
-func (s *ExerciseService) DeleteAll() error {
+func (s *ExerciseService) DeleteAll(ctx context.Context) error {
 	return s.Collection.Drop(context.TODO())
 }
 
 // Update update an existing exercise. Only the name and/or description
 // field can be updated
-func (s *ExerciseService) Update(e *client.Exercise) error {
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
+func (s *ExerciseService) Update(ctx context.Context, e *client.Exercise) error {
 	idPrimitive, err := primitive.ObjectIDFromHex(e.ID)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", e.ID, err)
@@ -105,7 +90,7 @@ func (s *ExerciseService) Update(e *client.Exercise) error {
 	}
 	filter := bson.M{"_id": idPrimitive}
 	update := bson.M{"$set": bson.M{"name": e.Name, "description": e.Description}}
-	updateResult, err := s.Collection.UpdateOne(context, filter, update)
+	updateResult, err := s.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		err = fmt.Errorf("failed to update exercise %s, %s", e.ID, err)
 		return err
@@ -117,31 +102,29 @@ func (s *ExerciseService) Update(e *client.Exercise) error {
 	return nil
 }
 
-func (s *ExerciseService) getOne(filter interface{}) (*Exercise, error) {
+func (s *ExerciseService) getOne(ctx context.Context, filter interface{}) (*Exercise, error) {
 	var exercise Exercise
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-	cursor := s.Collection.FindOne(context, filter)
+	cursor := s.Collection.FindOne(ctx, filter)
 	if err := cursor.Err(); err != nil {
 		err = fmt.Errorf("exercise not found, %s", err)
 		return nil, err
 	}
 	err := cursor.Decode(&exercise)
 	if err != nil {
-		log.Printf("failed to decode exercise %s", err)
+		s.log.Errorf("failed to decode exercise %s", err)
 		return nil, err
 	}
 	return &exercise, nil
 }
 
 // GetByID retrieve the details of an exercise
-func (s *ExerciseService) GetByID(hexid string) (*client.Exercise, error) {
+func (s *ExerciseService) GetByID(ctx context.Context, hexid string) (*client.Exercise, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
 		return nil, err
 	}
-	exercise, err := s.getOne(bson.M{"_id": idPrimitive})
+	exercise, err := s.getOne(ctx, bson.M{"_id": idPrimitive})
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +133,8 @@ func (s *ExerciseService) GetByID(hexid string) (*client.Exercise, error) {
 }
 
 // GetByName retrieve the details of an exercise
-func (s *ExerciseService) GetByName(name string) (*client.Exercise, error) {
-	exercise, err := s.getOne(bson.D{primitive.E{Key: "name", Value: name}})
+func (s *ExerciseService) GetByName(ctx context.Context, name string) (*client.Exercise, error) {
+	exercise, err := s.getOne(ctx, bson.D{primitive.E{Key: "name", Value: name}})
 	if err != nil {
 		return nil, err
 	}
@@ -160,29 +143,24 @@ func (s *ExerciseService) GetByName(name string) (*client.Exercise, error) {
 }
 
 // GetAll retrieve a list of all known exercises
-func (s *ExerciseService) GetAll() ([]*client.Exercise, error) {
-
-	// Set how long to wait for operation to complete before timing out
-	context, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
-	defer cancel()
-
+func (s *ExerciseService) GetAll(ctx context.Context) ([]*client.Exercise, error) {
 	var results []*client.Exercise
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor, err := s.Collection.Find(context, bson.D{{}})
+	cursor, err := s.Collection.Find(ctx, bson.D{{}})
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context)
+	defer cursor.Close(ctx)
 
 	// Finding multiple documents returns a cursor
 	// Iterating through the cursor allows us to decode documents one at a time
-	for cursor.Next(context) {
+	for cursor.Next(ctx) {
 
 		// create a value into which the single document can be decoded
 		var elem Exercise
 		err := cursor.Decode(&elem)
 		if err != nil {
-			log.Printf("failed to decode exercise %s", elem)
+			s.log.Errorf("failed to decode exercise %s", elem)
 			return nil, err
 		}
 
@@ -203,11 +181,15 @@ func (s *ExerciseService) GetAll() ([]*client.Exercise, error) {
 // LoadFromFile load json data from a file directly into a database.
 // If the ID field of the exercise data is not set, ie ObjectID.IsZero(),
 // a new ObjectID will be created for the exercise.
-func (s *ExerciseService) LoadFromFile(filename string) error {
+func (s *ExerciseService) LoadFromFile(ctx context.Context, filename string) error {
 	// Load values from JSON file to model
 	byteValues, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatal(err)
+		s.log.WithFields(log.Fields{
+			"filename":           filename,
+			"string(byteValues)": string(byteValues),
+		}).Debug(err)
+		return err
 	}
 	var ex []Exercise
 	json.Unmarshal(byteValues, &ex)
@@ -223,6 +205,6 @@ func (s *ExerciseService) LoadFromFile(filename string) error {
 	// Insert exercise into DB
 	ordered := false
 	insertOptions := &options.InsertManyOptions{Ordered: &ordered}
-	_, err = s.Collection.InsertMany(context.Background(), exercisesToAdd, insertOptions)
+	_, err = s.Collection.InsertMany(ctx, exercisesToAdd, insertOptions)
 	return err
 }

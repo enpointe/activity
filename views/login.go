@@ -3,7 +3,6 @@ package views
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/perm"
+	log "github.com/sirupsen/logrus"
 )
 
 const jwtExpirySeconds = 1200
@@ -30,7 +30,7 @@ type activityClaims struct {
 func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
-		log.Printf("unauthorized GET login attempt")
+		log.Warning("unauthorized GET login attempt")
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -38,17 +38,17 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	var creds client.Credentials
 	err := json.NewDecoder(request.Body).Decode(&creds)
 	if err != nil {
-		log.Printf("invalid log attempt, bad payload: %s", request.Body)
+		s.log.Warningf("invalid log attempt, bad payload: %s", request.Body)
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.Database, s.log)
 	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
-		log.Printf("Credentials didn't validate")
+		s.log.Warning("Credentials didn't validate")
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -73,7 +73,7 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		// If there is an error in creating the JWT return an internal server error
-		log.Print("JWT signing issue: ", err)
+		s.log.Errorf("JWT signing issue: %s", err)
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/views"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -42,15 +43,17 @@ const testBasic2UserPassword string = testAdmin1UserPassword
 func setup(t *testing.T, userLoadFile string) *views.ServerService {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 	opt := views.DBOptions(clientOptions)
+	logger := log.StandardLogger()
 
 	// We need to have at least one admin user present in our database
 	// to proceed.
 
-	server, err := views.NewServerService(true, opt, views.DBName(testDatabase))
+	server, err := views.NewServerService(true, opt,
+		views.DBName(testDatabase), views.Log(logger))
 	assert.NoError(t, err)
 	err = server.DeleteAll()
 	assert.NoError(t, err)
-	uService, err := db.NewUserService(server.Database)
+	uService, err := db.NewUserService(server.Database, logger)
 	assert.NoError(t, err)
 	err = uService.LoadFromFile(context.TODO(), userLoadFile)
 	assert.NoErrorf(t, err, "Error loading file %s", userLoadFile)

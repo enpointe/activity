@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/perm"
 
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,15 +22,14 @@ const UsersCollection = "users"
 // UserService holds a entry to the User Collection in the database
 type UserService struct {
 	Collection *mongo.Collection
+	log        *log.Logger
 }
 
 // NewUserService create a new instance of the User Service
-// An optional optParam may be specified
-// optParam[0] = DatabaseName
-func NewUserService(database *mongo.Database) (*UserService, error) {
+func NewUserService(database *mongo.Database, logger *log.Logger) (*UserService, error) {
 	collection := database.Collection(UsersCollection)
 	return &UserService{
-		Collection: collection}, nil
+		Collection: collection, log: logger}, nil
 }
 
 // Create add a new user to the database
@@ -40,21 +39,25 @@ func (s *UserService) Create(ctx context.Context, user *client.User) error {
 		return err
 	}
 
+	filter := bson.M{"user_id": user.Username}
+
+	// TODO - This is not safe as it is possible for a user_id to be created
+	// between our FindOne and the InsertOne Request. It appears we want
+	// do a upsert/$setOnInsert using FindOneUpdate.
+
 	// Check to make sure a user with the specified user ID doesn't already exist
-	cursor := s.Collection.FindOne(ctx, bson.M{
-		"user_id": user.Username,
-	})
+	cursor := s.Collection.FindOne(ctx, filter)
 	if err = cursor.Err(); err == nil {
 		// A match for that user already exists
 		err = fmt.Errorf("A entry matching the userID '%s' already exists", user.Username)
-		log.Print(err)
+		s.log.Debug(err)
 		return err
 	}
 
 	_, err = s.Collection.InsertOne(ctx, &u)
 	if err != nil {
 		err = fmt.Errorf("Unable to store user data in database, %s", err)
-		log.Print(err)
+		s.log.Error(err)
 	}
 
 	return err
@@ -78,7 +81,7 @@ func (s *UserService) DeleteUserData(ctx context.Context, hexid string) error {
 	if err != nil {
 
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
-		log.Print(err)
+		s.log.Error(err)
 	}
 	if results.DeletedCount == 0 {
 		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
@@ -95,7 +98,7 @@ func (s *UserService) DeleteAll(ctx context.Context) error {
 func (s *UserService) findOne(ctx context.Context, filter interface{}) (*User, error) {
 	cursor := s.Collection.FindOne(ctx, filter)
 	if err := cursor.Err(); err != nil {
-		log.Printf("user not found, %s", err)
+		s.log.Debugf("user not found, %s", err)
 		err = fmt.Errorf("user not found")
 		return nil, err
 	}
@@ -120,11 +123,13 @@ func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, err
 	idPrimitive, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", id, err)
+		s.log.Debug(err)
 		return nil, err
 	}
 	filter := bson.M{"_id": idPrimitive}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
+		s.log.Debug(err)
 		return nil, err
 	}
 	cUser := user.Convert()
@@ -136,6 +141,7 @@ func (s *UserService) GetByUsername(ctx context.Context, username string) (*clie
 	filter := bson.D{primitive.E{Key: "user_id", Value: username}}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
+		s.log.Debug(err)
 		return nil, err
 	}
 	cUser := user.Convert()
@@ -154,6 +160,7 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 		bson.D{{}},
 		options.Find().SetProjection(projection))
 	if err != nil {
+		s.log.Debug(err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -166,7 +173,7 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 		var elem User
 		err := cursor.Decode(&elem)
 		if err != nil {
-			log.Printf("failed to decode %s", elem)
+			s.log.Errorf("failed to decode %s", elem)
 			return nil, err
 		}
 
@@ -203,7 +210,7 @@ func (s *UserService) Update(ctx context.Context, u *client.User) error {
 	updateResult, err := s.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		err = fmt.Errorf("failed to update user %s, %s", u.ID, err)
-		log.Print(err)
+		log.Error(err)
 		return err
 	}
 	if updateResult.ModifiedCount != 1 {
@@ -238,11 +245,17 @@ func (s *UserService) LoadFromFile(ctx context.Context, filename string) error {
 	// Load values from JSON file to model
 	byteValues, err := ioutil.ReadFile(filename)
 	if err != nil {
+		err := fmt.Errorf("failed to read file %s, %s", filename, err)
+		s.log.Debug(err)
 		return err
 	}
 	var users []User
 	err = json.Unmarshal(byteValues, &users)
 	if err != nil {
+		s.log.WithFields(log.Fields{
+			"filename":           filename,
+			"string(byteValues)": string(byteValues),
+		}).Debug(err)
 		return err
 	}
 	var userToAdd []interface{}
