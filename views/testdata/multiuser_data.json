@@ -1,0 +1,7 @@
+[{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc1"},"user_id":"customer1","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":0},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc2"},"user_id":"staff1","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":1},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc3"},"user_id":"admin1","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"customer2","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":0},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc5"},"user_id":"staff2","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":1},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc6"},"user_id":"admin2","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2}]
+
