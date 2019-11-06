@@ -1,12 +1,12 @@
 package client
 
 // User the user model for json http interface
-// The ID field is the identifier field for the 
+// The ID field is the identifier field for the
 // record associated with the User structure.
 type User struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`
-	Password  string `json:"password"`
+	Password  string `json:"password,omitempty"`
 	Privilege string `json:"privilege"`
 }
 

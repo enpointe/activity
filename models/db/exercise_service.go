@@ -44,13 +44,13 @@ func (s *ExerciseService) Create(ctx context.Context, ex *client.Exercise) error
 	if err := cursor.Err(); err == nil {
 		// A match for that user already exists
 		err = fmt.Errorf("A entry matching the exercise name '%s' already exists", exercise.Name)
-		s.log.Debug(err)
+		log.Debug(err)
 		return err
 	}
 
 	_, err := s.Collection.InsertOne(ctx, &exercise)
 	if err != nil {
-		s.log.Errorf("Insert of %s failed, %s", exercise.Name, err)
+		log.Errorf("Insert of %s failed, %s", exercise.Name, err)
 	}
 	return err
 }
@@ -67,7 +67,7 @@ func (s *ExerciseService) Delete(ctx context.Context, hexid string) error {
 	if err != nil {
 
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
-		s.log.Error(err)
+		log.Error(err)
 	}
 	if results.DeletedCount == 0 {
 		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
@@ -111,7 +111,7 @@ func (s *ExerciseService) getOne(ctx context.Context, filter interface{}) (*Exer
 	}
 	err := cursor.Decode(&exercise)
 	if err != nil {
-		s.log.Errorf("failed to decode exercise %s", err)
+		log.Errorf("failed to decode exercise %s", err)
 		return nil, err
 	}
 	return &exercise, nil
@@ -160,7 +160,7 @@ func (s *ExerciseService) GetAll(ctx context.Context) ([]*client.Exercise, error
 		var elem Exercise
 		err := cursor.Decode(&elem)
 		if err != nil {
-			s.log.Errorf("failed to decode exercise %s", elem)
+			log.Errorf("failed to decode exercise %s", elem)
 			return nil, err
 		}
 
@@ -185,7 +185,7 @@ func (s *ExerciseService) LoadFromFile(ctx context.Context, filename string) err
 	// Load values from JSON file to model
 	byteValues, err := ioutil.ReadFile(filename)
 	if err != nil {
-		s.log.WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"filename":           filename,
 			"string(byteValues)": string(byteValues),
 		}).Debug(err)

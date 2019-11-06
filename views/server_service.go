@@ -23,7 +23,6 @@ type ServerService struct {
 	dbClOpts    *options.ClientOptions
 	client      *mongo.Client
 	Database    *mongo.Database
-	log         *log.Logger
 }
 
 // ServerOption options for the server that can be passed in by the callee
@@ -52,29 +51,17 @@ func CreateAdminUser(passwd []byte) ServerOption {
 	}
 }
 
-// Log Set the logger and the configuration to use
-// If not logger is set the StandardLogger with a
-// level of Level.Warning will be used.
-func Log(logger *log.Logger) ServerOption {
-	return func(s *ServerService) {
-		s.log = logger
-	}
-}
-
 // NewServerService create a server service that can be used to
 // instantiate a http server. This option will fail is no
 // admin privilege user has been configured
 func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService, error) {
+	log.Debug("Creating ServerService")
 	server := &ServerService{dbName: DefaultDatabase}
 	for _, opt := range opts {
 		opt(server)
 	}
 	if server.dbClOpts == nil {
 		server.dbClOpts = options.Client().ApplyURI("mongodb://localhost:27017")
-	}
-	if server.log == nil {
-		server.log = log.StandardLogger()
-		server.log.SetLevel(log.WarnLevel)
 	}
 
 	mClient, err := mongo.NewClient(server.dbClOpts)
@@ -100,7 +87,7 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 	// level user is required. Check to ensure that the admin
 	// privilege user exists. If no admin privileged user exists
 	// then abort startup
-	userService, err := db.NewUserService(server.Database, server.log)
+	userService, err := db.NewUserService(server.Database)
 	if err != nil {
 		err = fmt.Errorf("server startup error, failure connecting to database: %s", err)
 		return nil, err
@@ -118,11 +105,12 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 			Password:  string(server.adminPasswd),
 			Privilege: perm.Admin.String(),
 		}
-		err = userService.Create(ctx, &user)
+		id, err := userService.Create(ctx, &user)
 		if err != nil {
 			err = fmt.Errorf("failed to create admin privilege user: %s", err)
 			return nil, err
 		}
+		log.Infof("Successfully created admin user id %s", id)
 		configured = true
 	}
 	if err != nil {

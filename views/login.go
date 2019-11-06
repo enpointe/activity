@@ -38,17 +38,17 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	var creds client.Credentials
 	err := json.NewDecoder(request.Body).Decode(&creds)
 	if err != nil {
-		s.log.Warningf("invalid log attempt, bad payload: %s", request.Body)
+		log.Warningf("invalid log attempt, bad payload: %s", request.Body)
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 
-	userService, err := db.NewUserService(s.Database, s.log)
+	userService, err := db.NewUserService(s.Database)
 	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
-		s.log.Warning("Credentials didn't validate")
+		log.Warning("Credentials didn't validate")
 		response.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -73,7 +73,7 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		// If there is an error in creating the JWT return an internal server error
-		s.log.Errorf("JWT signing issue: %s", err)
+		log.Errorf("JWT signing issue: %s", err)
 		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -85,5 +85,6 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 		Value:  tokenString,
 		MaxAge: jwtExpirySeconds * 1000,
 	})
+	log.Infof("successfully logged in %s:%s", clientUser.ID, clientUser.Username)
 	response.WriteHeader(http.StatusOK)
 }
