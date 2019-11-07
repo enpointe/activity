@@ -16,7 +16,7 @@ import (
 )
 
 // ExerciseCollection name of the collection used to hold exercise information
-const ExerciseCollection = "testdata/exercise s"
+const ExerciseCollection = "testdata/exercises"
 
 // ExerciseService holds a entry to the Exercise Collection in the database
 type ExerciseService struct {

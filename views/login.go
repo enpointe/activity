@@ -45,7 +45,7 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 
-	userService, err := db.NewUserService(s.client, s.Database)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		return

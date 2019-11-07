@@ -26,10 +26,9 @@ type UserService struct {
 }
 
 // NewUserService create a new instance of the User Service
-func NewUserService(client *mongo.Client, database *mongo.Database) (*UserService, error) {
+func NewUserService(database *mongo.Database) (*UserService, error) {
 	collection := database.Collection(UsersCollection)
 	return &UserService{
-		client:     client,
 		Collection: collection}, nil
 }
 

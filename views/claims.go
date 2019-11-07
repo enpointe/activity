@@ -8,7 +8,11 @@ import (
 )
 
 // Claims the JWS Claims structure used to authenticate
-// a user and privileges once logged in
+// a user and privileges once logged in. ID represents
+// the identifier for the user. Username repesents
+// the login name of the user. Privilege represents
+// the privilege level the user pocesses in order
+// to perform actions against the http JSON interface.
 type Claims struct {
 	ID        string         `json:"id"`
 	Username  string         `json:"username"`
@@ -17,6 +21,8 @@ type Claims struct {
 }
 
 // validateClaim validate the JWT token string stored in the token cookie
+// Returns the claims structure if the JWT claim is validated. Returns http error
+// status code if the claim fails.
 func validateClaim(response http.ResponseWriter, request *http.Request) (*Claims, int) {
 	c, err := request.Cookie("token")
 	if err != nil {

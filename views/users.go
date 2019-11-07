@@ -78,7 +78,7 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		user.Username, user.Privilege)
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.client, s.Database)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -143,7 +143,7 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.client, s.Database)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -203,6 +203,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 		// This operation is allows with perm.Basic if the
 		// user is requesting data about themselves
 		if claims.ID != userID {
+			log.Tracef("User not authorized claims.ID %s != %s", claims.ID, userID)
 			response.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -210,7 +211,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.client, s.Database)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -253,7 +254,7 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 120*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.client, s.Database)
+	userService, err := db.NewUserService(s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
