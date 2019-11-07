@@ -24,7 +24,7 @@ type User struct {
 
 // NewUser transforms the web facing User structure
 // to a database compatible User structure. The ID field is
-// automaticly set to a primitive.NewObjectID() any passed
+// automatically set to a primitive.NewObjectID() any passed
 // in value is ignored.
 func NewUser(u *client.User) (*User, error) {
 	if !usernameCheck(u.Username) {

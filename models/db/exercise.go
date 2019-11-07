@@ -16,7 +16,7 @@ type Exercise struct {
 
 // NewExercise transforms the web facing Exercise structure
 // to a database compatible Exercise structure. The ID field is
-// automaticly set to a primitive.NewObjectID() any passed
+// automatically set to a primitive.NewObjectID() any passed
 // in value is ignored
 func NewExercise(e *client.Exercise) *Exercise {
 	exercise := Exercise{

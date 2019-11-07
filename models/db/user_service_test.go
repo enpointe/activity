@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/enpointe/activity/perm"
-	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -43,7 +42,7 @@ func SetupUser(t *testing.T, clear bool, load bool) *db.UserService {
 	assert.NoError(t, err)
 
 	database := client.Database(testDatabase)
-	us, err := db.NewUserService(database, log.StandardLogger())
+	us, err := db.NewUserService(client, database)
 	assert.NoError(t, err)
 	if clear {
 		err = us.DeleteAll(ctx)
@@ -74,8 +73,9 @@ func TestCreateUser(t *testing.T) {
 		Username: "customer1",
 		Password: "password",
 	}
-	err := userService.Create(ctx, &user)
+	id, err := userService.Create(ctx, &user)
 	assert.NoError(t, err)
+	assert.NotNil(t, id)
 
 	// Add a new staff user
 	user = client.User{
@@ -83,8 +83,9 @@ func TestCreateUser(t *testing.T) {
 		Password:  "password",
 		Privilege: perm.Staff.String(),
 	}
-	err = userService.Create(context.TODO(), &user)
+	id, err = userService.Create(ctx, &user)
 	assert.NoError(t, err)
+	assert.NotNil(t, id)
 
 	// Attempt to add a different user
 	user = client.User{
@@ -92,8 +93,9 @@ func TestCreateUser(t *testing.T) {
 		Password:  "changeMe",
 		Privilege: perm.Admin.String(),
 	}
-	err = userService.Create(ctx, &user)
+	id, err = userService.Create(ctx, &user)
 	assert.NoError(t, err)
+	assert.NotNil(t, id)
 }
 
 // TestCreateDuplicatUser ensure an attempt to add a duplicate user fails
@@ -107,12 +109,15 @@ func TestCreateDuplicateUser(t *testing.T) {
 		Username: "customer1",
 		Password: "password",
 	}
-	err := userService.Create(ctx, &user)
+	id, err := userService.Create(ctx, &user)
 	assert.NoError(t, err)
+	assert.NotNil(t, id)
 
 	// Attempt to add same user
-	err = userService.Create(ctx, &user)
+	id, err = userService.Create(ctx, &user)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
+	assert.NotNil(t, id)
 }
 
 // TestValidate ensure that a Validate correctly

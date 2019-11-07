@@ -45,7 +45,11 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.client, s.Database)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
 		log.Warning("Credentials didn't validate")

@@ -4,8 +4,8 @@ package client
 // The ID field is the identifier field for the
 // record associated with the User structure.
 type User struct {
-	ID        string `json:"id"`
-	Username  string `json:"username"`
+	ID        string `json:"id,unique"`
+	Username  string `json:"username,unique"`
 	Password  string `json:"password,omitempty"`
 	Privilege string `json:"privilege"`
 }

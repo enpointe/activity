@@ -22,12 +22,14 @@ const UsersCollection = "users"
 // UserService holds a entry to the User Collection in the database
 type UserService struct {
 	Collection *mongo.Collection
+	client     *mongo.Client
 }
 
 // NewUserService create a new instance of the User Service
-func NewUserService(database *mongo.Database) (*UserService, error) {
+func NewUserService(client *mongo.Client, database *mongo.Database) (*UserService, error) {
 	collection := database.Collection(UsersCollection)
 	return &UserService{
+		client:     client,
 		Collection: collection}, nil
 }
 
@@ -37,12 +39,37 @@ func (s *UserService) Create(ctx context.Context, user *client.User) (string, er
 	if err != nil {
 		return "", err
 	}
-
 	filter := bson.M{"user_id": user.Username}
+	// session, err := s.client.StartSession()
+	// if err != nil {
+	// 	return "", err
+	// }
+	// if err = session.StartTransaction(); err != nil {
+	// 	return "", err
+	// }
+	// var resultID string
+	// err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
 
-	// TODO - This is not safe as it is possible for a user_id to be created
-	// between our FindOne and the InsertOne Request. It appears we want
-	// do a upsert/$setOnInsert using FindOneUpdate.
+	// 	cursor := s.Collection.FindOne(sc, filter)
+	// 	if err = cursor.Err(); err == nil {
+	// 		// A match for that user already exists
+	// 		err = fmt.Errorf("A entry matching the userID '%s' already exists", user.Username)
+	// 		log.Debug(err)
+	// 		return err
+	// 	}
+
+	// 	result, err := s.Collection.InsertOne(sc, &u)
+	// 	if err != nil {
+	// 		err = fmt.Errorf("Unable to store user data in database, %s", err)
+	// 		log.Error(err)
+	// 		return err
+	// 	}
+	// 	resultID = result.InsertedID.(primitive.ObjectID).Hex()
+	// 	err = session.CommitTransaction(sc)
+	// 	return err
+	// })
+	// session.EndSession(ctx)
+	// return resultID, nil
 
 	// Check to make sure a user with the specified user ID doesn't already exist
 	cursor := s.Collection.FindOne(ctx, filter)
@@ -66,16 +93,39 @@ func (s *UserService) Create(ctx context.Context, user *client.User) (string, er
 // associated information associated with that user. Once deleted
 // the information can not be recovered.
 func (s *UserService) DeleteUserData(ctx context.Context, hexid string) error {
-	// TODO Must add in deletes for the users exercise logs when
-	// add to project. This must be done as a transaction to ensure that
-	// we don't end up with a partial deletion of data
-	//
-
 	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
 		return err
 	}
+
+	// session, err := s.client.StartSession()
+	// if err != nil {
+	// 	return err
+	// }
+	// if err = session.StartTransaction(); err != nil {
+	// 	return err
+	// }
+	// // Create a transaction for deleting all user records.
+	// // Currently this is only the user record but in the future will
+	// // include the user exercise log entries
+	// err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
+
+	// 	results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
+	// 	if err != nil {
+
+	// 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
+	// 		log.Error(err)
+	// 	}
+	// 	if results.DeletedCount == 0 {
+	// 		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
+	// 	}
+
+	// 	err = session.CommitTransaction(sc)
+	// 	return err
+	// })
+	// session.EndSession(ctx)results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
+
 	results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
 	if err != nil {
 

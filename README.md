@@ -1,5 +1,16 @@
 
-# Activity Server - Version 2.0 
+# Activity 
+<p align="center">
+  <a href="https://goreportcard.com/report/github.com/enpointe/activity"><img src="https://goreportcard.com/badge/github.com/enpointe/activity"></a>
+
+**Version 2.0**
+
+- [Status](#status)
+- [Requirements](#requirements)
+- [Building](#building)
+- [Running](#running)
+- [HTTP Interface](#http)
+
 
 This is a rework/expansion of the version 1.0 implementation of this activity logger which was written 
 as a take home project for a job interview.
@@ -18,6 +29,7 @@ In order to make the origional project a bit more interesting the overall projec
     * Add user authentication
     * Add some form of user priviledges
 
+-------------------------
 # Status
 
 Current status of work completed so far:
@@ -29,7 +41,7 @@ Current status of work completed so far:
 * Basic login/logout with JWT authentication has been implemented.
     * JWT token stored as a cookie in the session
 
-# Work outstanding
+## Work outstanding
 
 * Improve unit test
     * Investigate how to mock database calls
@@ -45,22 +57,17 @@ Current status of work completed so far:
 * perm authorization is a bit comberson. Consider adding a simple RBAC authorization on methods or 
     * [Casbin](https://github.com/casbin/casbin)
     * [goRBAC](https://github.com/mikespook/gorbac)
-* models/db - user_service.go - DeleteUserData. This routine needs to remove all
-   data associated with the user. This will need to be done as a transaction.
-   [See Mongo-Driver Transaction Example - UpdateEmployeeInfo line 1742](https://github.com/mongodb/mongo-go-driver/blob/master/examples/documentation_examples/examples.go)
-* models/db - user_service.go - Create is not multi request safe.  
-See TODO note
 * Document REST Api methods. Consider using [Swagger](https://towardsdatascience.com/setting-up-swagger-docs-for-golang-api-8d0442263641)
 * Auditing - Understand the best method for recording audit level changes
 
 
-# Issues Tracking 
+## Issues 
 
 [![Open issues](https://img.shields.io/github/issues/enpointe/activity)](https://github.com/enpointe/activity) [![Closed issues](https://img.shields.io/github/issues-closed/enpointe/activity)](https://github.com/enpointe/activity/issues?q=is%3Aissue+is%3Aclosed) [![Open PRs](https://img.shields.io/github/issues-pr/enpointe/activity)](https://github.com/enpointe/activity/pulls) [![Closed PRs](https://img.shields.io/github/issues-pr-closed/enpointe/activity)](https://github.com/enpointe/activity/pulls?q=is%3Apr+is%3Aclosed)
 
 Some aspects of this project are being tracked via the GitHub Issues. Others are simply marked at various points in the code with TODO or tracked in Work Outstand. Gradually all these issues will be moved to Issues Tracking as the project formalizes a bit more.
 
-# Prerequisite
+# Requirements
 
 As this tools uses MongoDB it will be necessary to install and start the mongod server before executing the application or
 running any tests. Currently the server needs to be accessible via 'mongodb://localhost:27017'. This change as
@@ -79,8 +86,9 @@ A convience Makefile is provided to build the application.
 $ make
 ```
 
+# Running
 
-# Starting the Activity Server
+## Starting the Activity Server
 
 1. Ensure the MongoDB server is running and available on the URL, mongodb://localhost:27017
 2. If starting the server for the first time it will be necessary to create a Administrative user, "admin".  This
@@ -99,11 +107,11 @@ or
 $ activity -admin <password>
 ```
 
-# HTTP Usage
+## HTTP Interface
 
-The following is a quick overview of running some of the current available commands. 
+The following is a quick overview of the currently available http interface calls that can be made to the server associated with this project.
 
-## {serverURL}/login - Login in a User
+### {serverURL}/login - Login in a User
 
 The following shows the login process for a user. To log in a user the credential information for the user needs to be sent.
 Upon successfully logging in a cookie 'token' is returned that represents the authentication token to use for subsequent requests.
@@ -125,7 +133,7 @@ localhost      	FALSE  	/      	FALSE  	1574258487     	token  	eyJhbGciOiJIUzI1
 
 activity.cookies is where the JWT token 'token' is stored with contains the authorization which will be used for subsequent commands to the activity server.
 
-## {serverURL}/logout - Log out a user
+### {serverURL}/logout - Log out a user
 
 The logout operation will log the user out of the current session and clear the token cookie.  Using curl this
 requires us to use both the -b and -c options.
@@ -142,7 +150,7 @@ localhost      	FALSE  	/      	FALSE  	1572926089     	token
 
 **Notice:** that the logout of the user causes the cookie token to expire
 
-## {serverURL}/users/ - Retrieve informationa about all known users
+### {serverURL}/users/ - Retrieve informationa about all known users
 
 ```
 $ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X GET http://localhost:8080/users/
@@ -156,7 +164,7 @@ Content-Length: 178
 {"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"admin","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2}]
 ```
 
-## {serverURL}/user/{id} - Retrieve information about a particular user
+### {serverURL}/user/{id} - Retrieve information about a particular user
 
 Retrieve information about a particular user
 
@@ -170,7 +178,7 @@ Content-Length: 88
 {"id":"5dc08c9d989368d8f439e39a","username":"admin","password":"-","privilege":"admin"}
 ```
 
-## {serverURL}/user/create - Create a new user
+### {serverURL}/user/create - Create a new user
 
 ```
 $ curl -i -b activity.cookies -d '{"username":"kitty", "password":"1Me0w4u@H", "privilege": "staff"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/create
@@ -182,7 +190,7 @@ Content-Length: 34
 {"id":"5dc2f8751e1d7704072214b8"}
 ```
 
-## {serverURL}/user/delete/{id} - Delete user with id
+### {serverURL}/user/delete/{id} - Delete user with id
 
 ```
 $ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X POST http://localhost:8080/user/delete/5dc3227a3ff84c7a8374616d

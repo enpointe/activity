@@ -87,7 +87,7 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 	// level user is required. Check to ensure that the admin
 	// privilege user exists. If no admin privileged user exists
 	// then abort startup
-	userService, err := db.NewUserService(server.Database)
+	userService, err := db.NewUserService(server.client, server.Database)
 	if err != nil {
 		err = fmt.Errorf("server startup error, failure connecting to database: %s", err)
 		return nil, err

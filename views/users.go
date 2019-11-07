@@ -78,7 +78,7 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		user.Username, user.Privilege)
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.client, s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -123,7 +123,7 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		return
 	}
 
-	// Retreive the id from the URL of the user to delete
+	// Retrieve the id from the URL of the user to delete
 	id := path.Base(request.URL.EscapedPath())
 	if len(id) == 0 {
 		// Request does not contain requested user
@@ -136,10 +136,14 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 	// In order to accomplish this we'll need to fetch the user
 	// first before deleting.  Need to introduce a transaction to
 	// make this operation safe.
+	if claims.Privilege == perm.Staff {
+		// Make sure a staff user is not attempting to delete a Admin Privilege user
+
+	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.client, s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -184,7 +188,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	// Retreive the user ID from the URL
+	// Retrieve the user ID from the URL
 	userID := path.Base(request.URL.EscapedPath())
 	if len(userID) == 0 {
 		// Request does not contain requested user
@@ -206,7 +210,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.client, s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
@@ -249,7 +253,7 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 120*time.Second)
 	defer cancel()
-	userService, err := db.NewUserService(s.Database)
+	userService, err := db.NewUserService(s.client, s.Database)
 	if err != nil {
 		response.WriteHeader(http.StatusInternalServerError)
 		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
