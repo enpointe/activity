@@ -6,11 +6,13 @@
 **Version 2.0**
 
 - [Status](#status)
+- [Work Outstanding](#work-outstanding)
 - [Requirements](#requirements)
 - [Building](#building)
 - [Running](#running)
-- [HTTP Interface](#http)
-
+- [HTTP Interface](#http-interface)
+- [Project Structure](#project-structure)
+- [References](#references)
 
 This is a rework/expansion of the version 1.0 implementation of this activity logger which was written 
 as a take home project for a job interview.
@@ -32,6 +34,9 @@ In order to make the origional project a bit more interesting the overall projec
 -------------------------
 # Status
 
+The current state of this project
+
+## Completed
 Current status of work completed so far:
 
 * Basic Templates for database tables has been created
@@ -43,6 +48,8 @@ Current status of work completed so far:
 
 ## Work outstanding
 
+* Add ability to log exercise workouts
+* Add exercise HTTP methods
 * Improve unit test
     * Investigate how to mock database calls
 * Integration Level testing
@@ -51,7 +58,7 @@ Current status of work completed so far:
 * Add mechanism for prepopulating database with Exercises
 * Examine whether view code should have some context cancel in it. See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
 * JWT secret key needs to be configurable.
-    * Consider creating a cli interface for this
+    * Consider creating configuration file for this
 * Need to create an initial admin user in order for http interfaces to function.
     * Consider creating a cli interface for this
 * perm authorization is a bit comberson. Consider adding a simple RBAC authorization on methods or 
@@ -61,11 +68,11 @@ Current status of work completed so far:
 * Auditing - Understand the best method for recording audit level changes
 
 
-## Issues 
+# Issues 
 
 [![Open issues](https://img.shields.io/github/issues/enpointe/activity)](https://github.com/enpointe/activity) [![Closed issues](https://img.shields.io/github/issues-closed/enpointe/activity)](https://github.com/enpointe/activity/issues?q=is%3Aissue+is%3Aclosed) [![Open PRs](https://img.shields.io/github/issues-pr/enpointe/activity)](https://github.com/enpointe/activity/pulls) [![Closed PRs](https://img.shields.io/github/issues-pr-closed/enpointe/activity)](https://github.com/enpointe/activity/pulls?q=is%3Apr+is%3Aclosed)
 
-Some aspects of this project are being tracked via the GitHub Issues. Others are simply marked at various points in the code with TODO or tracked in Work Outstand. Gradually all these issues will be moved to Issues Tracking as the project formalizes a bit more.
+Most issues of this project are currently being tracked via TODO in the code. Larger items that need to be done are currently tracked in Work Outstanding. Gradually all these issues will be moved to Issues Tracking as the project formalizes a bit more.
 
 # Requirements
 
@@ -111,7 +118,7 @@ $ activity -admin <password>
 
 The following is a quick overview of the currently available http interface calls that can be made to the server associated with this project.
 
-### {serverURL}/login - Login in a User
+### {ServerURL}/login - Login in a User
 
 The following shows the login process for a user. To log in a user the credential information for the user needs to be sent.
 Upon successfully logging in a cookie 'token' is returned that represents the authentication token to use for subsequent requests.
@@ -133,7 +140,7 @@ localhost      	FALSE  	/      	FALSE  	1574258487     	token  	eyJhbGciOiJIUzI1
 
 activity.cookies is where the JWT token 'token' is stored with contains the authorization which will be used for subsequent commands to the activity server.
 
-### {serverURL}/logout - Log out a user
+### {ServerURL}/logout - Log out a user
 
 The logout operation will log the user out of the current session and clear the token cookie.  Using curl this
 requires us to use both the -b and -c options.
@@ -150,7 +157,7 @@ localhost      	FALSE  	/      	FALSE  	1572926089     	token
 
 **Notice:** that the logout of the user causes the cookie token to expire
 
-### {serverURL}/users/ - Retrieve informationa about all known users
+### {ServerURL}/users/ - Retrieve informationa about all known users
 
 ```
 $ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X GET http://localhost:8080/users/
@@ -164,7 +171,7 @@ Content-Length: 178
 {"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"admin","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2}]
 ```
 
-### {serverURL}/user/{id} - Retrieve information about a particular user
+### {ServerURL}/user/{id} - Retrieve information about a particular user
 
 Retrieve information about a particular user
 
@@ -178,7 +185,7 @@ Content-Length: 88
 {"id":"5dc08c9d989368d8f439e39a","username":"admin","password":"-","privilege":"admin"}
 ```
 
-### {serverURL}/user/create - Create a new user
+### {ServerURL}/user/create - Create a new user
 
 ```
 $ curl -i -b activity.cookies -d '{"username":"kitty", "password":"1Me0w4u@H", "privilege": "staff"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/create
@@ -190,7 +197,7 @@ Content-Length: 34
 {"id":"5dc2f8751e1d7704072214b8"}
 ```
 
-### {serverURL}/user/delete/{id} - Delete user with id
+### {ServerURL}/user/delete/{id} - Delete user with id
 
 ```
 $ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X POST http://localhost:8080/user/delete/5dc3227a3ff84c7a8374616d
@@ -204,18 +211,37 @@ Content-Length: 21
 
 # Project Structure
 
-This project is laid out as a Go module. 
+This project is laid out as a Go module in a hierachy to support the notion of Model-View-Container architecture. 
 
-The code is primarily laid out in a hierachy to support the notion of Model-View-Container. 
+```
+├── models                      // Models for our application
+│   ├── client                  // Model for client
+│   │   ├── credentials.go      // Login Credentials API
+│   │   ├── exercise.go         // Exercise API
+│   │   ├── user.go             // User API
+│   ├── db                      // APIs for access the database
+│   │   ├── exercise.go         // Model for exercise collection
+│   │   ├── exercise_service.go // APIs for exercise collection
+│   │   ├── user.go             // Model for users collection
+│   │   ├── user_service.go     // APIs for user collection
+├── perm                        // Permission model for method access control
+│   └── priv.go                 // Permissions level used for access control
+├── views                       // View APIs for client
+│       └── claims.go           // JWS claims
+│       └── login.go            // HTTP login interface
+│       └── logout.go           // HTTP logout interface
+│       └── server_service.go   // HTTP Server 
+│       └── users.go            // HTTP interface for interacting with the user model
+├── scripts                     // Scripts
+│   └── start-dev-container.sh  // Docker script for starting up development environment
+└── server.go                   // Server application
 
-* models/client - Interfaces for returning data to the client
-* models/db - Interfaces for reading and writing to the
-* perm - Basic permissions for operations. The current setup is limited in scope and not implemented
-    throught the project. It will be replaced by something more appropriate
-* views - Interfaces to be used by the web server
-
+```
 
 # References
+
+References used during the development of this project
+
 * [Make yourself a Go web server with MongoDb](https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)
 * [Implementing JWT based authentication in Golang](https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/)
 
