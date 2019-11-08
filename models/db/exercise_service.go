@@ -145,7 +145,6 @@ func (s *ExerciseService) GetByName(ctx context.Context, name string) (*client.E
 // GetAll retrieve a list of all known exercises
 func (s *ExerciseService) GetAll(ctx context.Context) ([]*client.Exercise, error) {
 	var results []*client.Exercise
-	// Check to make sure a user with the specified user ID doesn't already exist
 	cursor, err := s.Collection.Find(ctx, bson.D{{}})
 	if err != nil {
 		return nil, err
@@ -185,14 +184,19 @@ func (s *ExerciseService) LoadFromFile(ctx context.Context, filename string) err
 	// Load values from JSON file to model
 	byteValues, err := ioutil.ReadFile(filename)
 	if err != nil {
+		err := fmt.Errorf("failed to read file %s, %s", filename, err)
+		log.Debug(err)
+		return err
+	}
+	var ex []Exercise
+	err = json.Unmarshal(byteValues, &ex)
+	if err != nil {
 		log.WithFields(log.Fields{
 			"filename":           filename,
 			"string(byteValues)": string(byteValues),
 		}).Debug(err)
 		return err
 	}
-	var ex []Exercise
-	json.Unmarshal(byteValues, &ex)
 	var exercisesToAdd []interface{}
 	for _, e := range ex {
 		// Check to see if the ID field is set. If not set it

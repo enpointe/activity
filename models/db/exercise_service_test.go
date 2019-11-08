@@ -64,6 +64,19 @@ func TestCreateExercise(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCreateExerciseNoName(t *testing.T) {
+	service := SetupExercise(t, true, false)
+	defer TeardownExercise(t, service)
+	ctx := context.TODO()
+
+	// Add a new Exercise with no name specified
+	exercise := client.Exercise{
+		Description: "Description for sit-ups",
+	}
+	err := service.Create(ctx, &exercise)
+	assert.Error(t, err)
+}
+
 // TestCreateDuplicatExercise ensure an attempt to add a duplicate exercise fails
 func TestCreateDuplicateExercise(t *testing.T) {
 	service := SetupExercise(t, true, false)
@@ -163,6 +176,12 @@ func TestUpdateExercise(t *testing.T) {
 	update, err := service.GetByName(ctx, "running")
 	assert.NoError(t, err)
 	assert.Equal(t, e.Description, update.Description)
+
+	// Attempt update with bad ID
+	e.ID = "Jumping Jack"
+	err = service.Update(ctx, e)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid id")
 }
 
 func TestUpdateNonExistent(t *testing.T) {
@@ -176,4 +195,30 @@ func TestUpdateNonExistent(t *testing.T) {
 	err := service.Update(ctx, &exercise)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no match found")
+}
+
+func TestLoadExFromFile(t *testing.T) {
+	// Test load from non existant file
+	service := SetupExercise(t, false, false)
+	ctx := context.TODO()
+	err := service.LoadFromFile(ctx, "someFile")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no such file or directory")
+
+	// Load in a exercise without a ID specified. Check to make sure
+	// an ID is generated
+	err = service.LoadFromFile(ctx, "testdata/ex_load_test.json")
+	assert.NoError(t, err)
+	if err != nil {
+		ex, err := service.GetByName(ctx, "Jumping Jack")
+		assert.NoError(t, err)
+		assert.NotNil(t, ex)
+		if ex != nil {
+			assert.NotNil(t, ex.ID)
+		}
+	}
+
+	// Attempt to load in a badly formed json file
+	err = service.LoadFromFile(ctx, "testdata/invalid.json")
+	assert.Error(t, err)
 }

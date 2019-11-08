@@ -59,8 +59,10 @@ func setup(t *testing.T, userLoadFile string) *views.ServerService {
 	assert.NoError(t, err)
 	uService, err := db.NewUserService(server.Database)
 	assert.NoError(t, err)
-	err = uService.LoadFromFile(context.TODO(), userLoadFile)
-	assert.NoErrorf(t, err, "Error loading file %s", userLoadFile)
+	if len(userLoadFile) > 0 {
+		err = uService.LoadFromFile(context.TODO(), userLoadFile)
+		assert.NoErrorf(t, err, "Error loading file %s", userLoadFile)
+	}
 	return server
 }
 
@@ -149,4 +151,22 @@ func TestInvalidLogin(t *testing.T) {
 	response = httptest.NewRecorder()
 	server.Login(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
+}
+
+func TestReuseOfToken(t *testing.T) {
+	server := setup(t, testAdminFilenameJSON)
+	defer teardown(t, server)
+	creds := client.Credentials{Username: testAdmin1Username, Password: testAdmin1UserPassword}
+	tokenCookie := login(t, server, creds)
+	copy := *tokenCookie
+	logout(t, server, &copy)
+
+	// Try to perform an action using the original token cookie
+	// This should fail because the user logged out.
+	request := httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
+	request.AddCookie(tokenCookie)
+	response := httptest.NewRecorder()
+	server.GetUser(response, request)
+	assert.Equal(t, http.StatusUnauthorized, response.Code)
+
 }

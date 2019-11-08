@@ -157,13 +157,14 @@ func (s *UserService) findOne(ctx context.Context, filter interface{}) (*User, e
 
 // AdminUserExists basic test to ensure at a minimum one
 // admin account exists
-func (s *UserService) AdminUserExists(ctx context.Context) (bool, error) {
+func (s *UserService) AdminUserExists(ctx context.Context) bool {
 	filter := bson.M{"privilege": perm.Admin}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
-		return false, err
+		log.Debug(err.Error())
+		return false
 	}
-	return user != nil, nil
+	return user != nil
 }
 
 // GetByID retrieve the user record via the passed in username
@@ -255,7 +256,7 @@ func (s *UserService) Update(ctx context.Context, u *client.User) error {
 	}
 	filter := bson.M{"_id": idPrimitive}
 	update := bson.M{"$set": bson.M{
-		"username":  u.Username,
+		"user_id":   u.Username,
 		"password":  u.Password,
 		"privilege": perm.Convert(u.Privilege),
 	}}

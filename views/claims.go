@@ -20,11 +20,14 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
+// TokenCookie the name for the JWT claims token
+const TokenCookie string = "token"
+
 // validateClaim validate the JWT token string stored in the token cookie
 // Returns the claims structure if the JWT claim is validated. Returns http error
 // status code if the claim fails.
 func validateClaim(response http.ResponseWriter, request *http.Request) (*Claims, int) {
-	c, err := request.Cookie("token")
+	c, err := request.Cookie(TokenCookie)
 	if err != nil {
 		if err == http.ErrNoCookie {
 			// If the cookie is not set, return an unauthorized status

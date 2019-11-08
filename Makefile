@@ -3,6 +3,11 @@
 all: build test
 
 build:
-	go build
+	go build ./...
 test:
-	go test -v
+	go test ./...
+
+coverage:
+	go test ./... -coverprofile=coverage.out
+	go tool cover -html=coverage.out
+

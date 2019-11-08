@@ -22,6 +22,7 @@ const testUserFilename string = "testdata/user_test.json"
 // to the username added from the testdata json file
 // to the User Collection
 const testAdminUsername string = "admin"
+const testAdminID string = "5db8e02b0e7aa732afd7fbc4"
 const testAdminUserPassword string = "changeMe"
 const testStaffUsername string = "staff"
 const testStaffUserPassword string = "tellTheTruth"
@@ -96,6 +97,27 @@ func TestCreateUser(t *testing.T) {
 	id, err = userService.Create(ctx, &user)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
+}
+
+func TestCreateUserFailures(t *testing.T) {
+	userService := SetupUser(t, false, false)
+	defer TeardownUser(t, userService)
+	ctx := context.TODO()
+
+	// Test no user specified
+	user := client.User{
+		Password: "password",
+	}
+	id, err := userService.Create(ctx, &user)
+	assert.Error(t, err)
+	assert.Empty(t, id)
+
+	// Test no password specified
+	user = client.User{
+		Username: "customer1",
+	}
+	_, err = userService.Create(ctx, &user)
+	assert.Error(t, err)
 }
 
 // TestCreateDuplicatUser ensure an attempt to add a duplicate user fails
@@ -174,6 +196,22 @@ func TestGetUserByName(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetByName(t *testing.T) {
+	userService := SetupUser(t, true, true)
+	defer TeardownUser(t, userService)
+	ctx := context.TODO()
+
+	// Attempt to retrieve the user populated to the user collection
+	retUser, err := userService.GetByID(ctx, testAdminID)
+	assert.Equal(t, testAdminUsername, retUser.Username)
+	assert.Equal(t, perm.Admin.String(), retUser.Privilege)
+	assert.NoError(t, err)
+
+	// Attempt to retrieve a non existent user
+	retUser, err = userService.GetByID(ctx, "noexist")
+	assert.Error(t, err)
+}
+
 func TestGetAllUsers(t *testing.T) {
 	userService := SetupUser(t, true, true)
 	defer TeardownUser(t, userService)
@@ -206,4 +244,86 @@ func TestDeleteUser(t *testing.T) {
 	err = userService.DeleteUserData(ctx, "4dddkalkdlajbeee")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid id")
+}
+
+func TestUpdateUser(t *testing.T) {
+	service := SetupUser(t, true, true)
+	ctx := context.TODO()
+
+	testUsername := "admin2"
+	user := client.User{
+		ID:       testAdminID,
+		Username: testUsername,
+		Password: testAdminUserPassword,
+	}
+	err := service.Update(ctx, &user)
+	assert.NoError(t, err)
+	// Fetch the user and check to make sure the password
+	// was updated
+	u, err := service.GetByID(ctx, testAdminID)
+	assert.NoError(t, err)
+	assert.Equal(t, u.Username, testUsername)
+}
+
+func TestUpdateFailures(t *testing.T) {
+	service := SetupUser(t, false, false)
+	ctx := context.TODO()
+
+	user := client.User{
+		ID:       "6666e02b0e7aa732afd7fbc4",
+		Username: testCustomerUsername,
+		Password: testCustomerUserPassword,
+	}
+	// Test non existent user
+	err := service.Update(ctx, &user)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update")
+
+	// Test base ID
+	user.ID = ""
+	err = service.Update(ctx, &user)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid id")
+
+}
+
+func TestLoadUserFromFile(t *testing.T) {
+	// Test load from non existant file
+	service := SetupUser(t, false, false)
+	ctx := context.TODO()
+	err := service.LoadFromFile(ctx, "someFile")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no such file or directory")
+
+	// Load in a exercise without a ID specified. Check to make sure
+	// an ID is generated
+	err = service.LoadFromFile(ctx, "testdata/user_load_test.json")
+	assert.NoError(t, err)
+	if err != nil {
+		ex, err := service.GetByUsername(ctx, "customer1")
+		assert.NoError(t, err)
+		assert.NotNil(t, ex)
+		if ex != nil {
+			assert.NotNil(t, ex.ID)
+		}
+	}
+
+	// Attempt to load in a badly formed json file
+	err = service.LoadFromFile(ctx, "testdata/invalid.json")
+	assert.Error(t, err)
+}
+
+func TestAdminUserCheckPresent(t *testing.T) {
+	service := SetupUser(t, true, true)
+	ctx := context.TODO()
+	result := service.AdminUserExists(ctx)
+	assert.True(t, result)
+}
+
+func TestAdminUserCheckNotPresent(t *testing.T) {
+	service := SetupUser(t, true, false)
+	ctx := context.TODO()
+	result := service.AdminUserExists(ctx)
+	assert.False(t, result)
+
 }

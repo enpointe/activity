@@ -20,7 +20,7 @@ func (p Privilege) String() string {
 		"admin",
 	}
 	if p < Basic || p > Admin {
-		return "basic"
+		return "unknown"
 	}
 	return names[p]
 }

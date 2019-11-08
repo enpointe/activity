@@ -92,8 +92,8 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 		err = fmt.Errorf("server startup error, failure connecting to database: %s", err)
 		return nil, err
 	}
-	configured, err := userService.AdminUserExists(ctx)
-	if len(server.adminPasswd) > 0 && (!configured || err != nil) {
+	configured := userService.AdminUserExists(ctx)
+	if len(server.adminPasswd) > 0 && !configured {
 		// The user requested that we create an admin user.
 		// This option is only allowed if an admin user doesn't already exist
 		if configured {

@@ -11,6 +11,9 @@ func TestString(t *testing.T) {
 	assert.Equal(t, perm.Admin.String(), "admin")
 	assert.Equal(t, perm.Staff.String(), "staff")
 	assert.Equal(t, perm.Basic.String(), "basic")
+	assert.Equal(t, perm.Privilege(4).String(), "unknown")
+	assert.Equal(t, perm.Privilege(-1).String(), "unknown")
+	assert.Equal(t, perm.Privilege(0).String(), "basic")
 }
 
 func TestConvert(t *testing.T) {
@@ -29,4 +32,12 @@ func TestAuthorized(t *testing.T) {
 	assert.True(t, !perm.Basic.Grants(perm.Admin))
 	assert.True(t, !perm.Basic.Grants(perm.Staff))
 	assert.True(t, perm.Basic.Grants(perm.Basic))
+
+	// Test invalid privilege
+	p := perm.Privilege(4)
+	assert.False(t, p.Grants(perm.Basic))
+	assert.False(t, p.Grants(perm.Admin))
+}
+
+func TestInvalids(t *testing.T) {
 }
