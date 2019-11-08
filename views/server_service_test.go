@@ -31,5 +31,7 @@ func TestAdminOption(t *testing.T) {
 	sOptions = append(sOptions, views.CreateAdminUser([]byte("changeMe")))
 	activityServer, err := views.NewServerService(false, sOptions...)
 	assert.NoError(t, err)
-	activityServer.DeleteAll()
+	if activityServer != nil {
+		activityServer.DeleteAll()
+	}
 }

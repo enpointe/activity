@@ -21,16 +21,22 @@ const testMultiUserFilenameJSON string = "testdata/multiuser_data.json"
 
 // The usernames and the passwords here correspond
 // to the usernames added from the testdata json file
+const testAdmin1ID string = "5db8e02b0e7aa732afd7fbc3"
 const testAdmin1Username string = "admin1"
 const testAdmin1UserPassword string = "changeMe"
+const testStaff1ID string = "5db8e02b0e7aa732afd7fbc2"
 const testStaff1Username string = "staff1"
 const testStaff1UserPassword string = testAdmin1UserPassword
+const testBasic1ID string = "5db8e02b0e7aa732afd7fbc1"
 const testBasic1Username string = "customer1"
 const testBasic1UserPassword string = testAdmin1UserPassword
+const testAdmin2ID string = "5db8e02b0e7aa732afd7fbc6"
 const testAdmin2Username string = "admin2"
 const testAdmin2UserPassword string = "changeMe"
+const testStaff2ID string = "5db8e02b0e7aa732afd7fbc5"
 const testStaff2Username string = "staff2"
 const testStaff2UserPassword string = testAdmin1UserPassword
+const testBasic2ID string = "5db8e02b0e7aa732afd7fbc4"
 const testBasic2Username string = "customer2"
 const testBasic2UserPassword string = testAdmin1UserPassword
 

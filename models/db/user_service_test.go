@@ -42,7 +42,7 @@ func SetupUser(t *testing.T, clear bool, load bool) *db.UserService {
 	assert.NoError(t, err)
 
 	database := client.Database(testDatabase)
-	us, err := db.NewUserService(client, database)
+	us, err := db.NewUserService(database)
 	assert.NoError(t, err)
 	if clear {
 		err = us.DeleteAll(ctx)

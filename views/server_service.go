@@ -112,6 +112,7 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 		}
 		log.Infof("Successfully created admin user id %s", id)
 		configured = true
+		err = nil
 	}
 	if err != nil {
 		err = fmt.Errorf("server startup error, admin privilege check: %s", err)

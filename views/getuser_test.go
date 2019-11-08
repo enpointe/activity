@@ -49,28 +49,28 @@ func TestGetUserViaAdmin(t *testing.T) {
 	defer logout(t, server, tokenCookie)
 
 	// Attempt to retrieve details about the same user
-	request := httptest.NewRequest("GET", "http:///activity/user/admin1", nil)
+	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Attempt to retrieve details about the another admin user
-	request = httptest.NewRequest("GET", "http:///activity/user/admin2", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testAdmin2ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Attempt to retrieve details about the admin user
-	request = httptest.NewRequest("GET", "http:///activity/user/staff1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Attempt to retrieve details about the customer user
-	request = httptest.NewRequest("GET", "http:///activity/user/customer1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
@@ -88,21 +88,21 @@ func TestGetUserViaStaff(t *testing.T) {
 
 	// Staff user can retrieve a user with perm.ADMIN privilege,
 	// as no password information is sent back
-	request := httptest.NewRequest("GET", "http:///activity/user/admin1", nil)
+	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Staff user can retrieve a user with perm.STAFF privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/staff1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Staff user can retrieve a user with perm.BASIC privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/customer1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
@@ -118,21 +118,21 @@ func TestGetUserViaBasic(t *testing.T) {
 	defer logout(t, server, tokenCookie)
 
 	// Verify perm.BASIC will not allow retrieval of perm.ADMIN privilege user
-	request := httptest.NewRequest("GET", "http:///activity/user/admin1", nil)
+	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Verify perm.BASIC will not allow retrieval of perm.STAFF privilege user
-	request = httptest.NewRequest("GET", "http:///activity/user/staff1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Staff user can retrieve a user with perm.BASIC privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/customer1", nil)
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
 	request.AddCookie(tokenCookie)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
