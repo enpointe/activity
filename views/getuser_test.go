@@ -75,7 +75,6 @@ func TestGetUserViaAdmin(t *testing.T) {
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
-
 }
 
 // TestGetUserViaStaff test GetUser using a user with perm.STAFF privileges
@@ -137,4 +136,27 @@ func TestGetUserViaBasic(t *testing.T) {
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
+}
+
+func TestGetUserFailure(t *testing.T) {
+
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
+	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
+	tokenCookie := login(t, server, creds)
+	defer logout(t, server, tokenCookie)
+
+	// Fail because no user specified
+	request := httptest.NewRequest("GET", "http:///activity/user/", nil)
+	request.AddCookie(tokenCookie)
+	response := httptest.NewRecorder()
+	server.GetUser(response, request)
+	assert.Equal(t, http.StatusBadRequest, response.Code)
+
+	// Fail due to POST
+	request = httptest.NewRequest("POST", "http:///activity/user/", nil)
+	request.AddCookie(tokenCookie)
+	response = httptest.NewRecorder()
+	server.GetUser(response, request)
+	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
 }

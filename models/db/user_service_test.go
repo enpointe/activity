@@ -232,18 +232,20 @@ func TestDeleteUser(t *testing.T) {
 	assert.Equal(t, testCustomerUsername, user.Username)
 	assert.NoError(t, err)
 
-	err = userService.DeleteUserData(ctx, user.ID)
+	cnt, err := userService.DeleteUserData(ctx, user.ID)
 	assert.NoError(t, err)
+	assert.Equal(t, 1, cnt)
 
 	// Attempt to delete a non existent user
-	err = userService.DeleteUserData(ctx, primitive.NewObjectID().Hex())
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete")
+	cnt, err = userService.DeleteUserData(ctx, primitive.NewObjectID().Hex())
+	assert.NoError(t, err)
+	assert.Equal(t, 0, cnt)
 
 	// Attempt delete with bad ID
-	err = userService.DeleteUserData(ctx, "4dddkalkdlajbeee")
+	cnt, err = userService.DeleteUserData(ctx, "4dddkalkdlajbeee")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid id")
+	assert.Equal(t, 0, cnt)
 }
 
 func TestUpdateUser(t *testing.T) {

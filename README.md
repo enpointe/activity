@@ -206,8 +206,9 @@ Content-Type: application/json
 Date: Wed, 06 Nov 2019 19:44:11 GMT
 Content-Length: 21
 
-{"deletedEntries":1}
+{"deleteCount":1}
 ```
+**NOTE**: If the user that was requested to delete does not exist the HTTP Status 200 OK will be returned with a deleteCount of 0
 
 # Project Structure
 
@@ -227,7 +228,7 @@ This project is laid out as a Go module in a hierachy to support the notion of M
 ├── perm                        // Permission model for method access control
 │   └── priv.go                 // Permissions level used for access control
 ├── views                       // View APIs for client
-│       └── claims.go           // JWS claims
+│       └── claims.go           // JWT claims
 │       └── login.go            // HTTP login interface
 │       └── logout.go           // HTTP logout interface
 │       └── server_service.go   // HTTP Server 

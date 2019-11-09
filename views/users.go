@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/enpointe/activity/models/client"
@@ -124,8 +125,9 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 	}
 
 	// Retrieve the id from the URL of the user to delete
-	id := path.Base(request.URL.EscapedPath())
-	if len(id) == 0 {
+	p := request.URL.EscapedPath()
+	id := path.Base(p)
+	if len(id) == 0 || strings.HasSuffix(p, "/") {
 		// Request does not contain requested user
 		response.WriteHeader(http.StatusBadRequest)
 		response.Write([]byte(`{ "message": "Unable to delete user, no id specified" }`))
@@ -140,7 +142,6 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		// Make sure a staff user is not attempting to delete a Admin Privilege user
 
 	}
-
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
@@ -150,21 +151,26 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		return
 	}
 	log.Tracef("%s:%s requested delete of user %s", claims.ID, claims.Username, id)
-	err = userService.DeleteUserData(ctx, id)
-	if err != nil {
+	code := http.StatusOK
+	cnt, err := userService.DeleteUserData(ctx, id)
+	if err != nil || cnt == 0 {
 		log.Errorf("%s:%s failed to delete user %s, %s",
 			claims.ID, claims.Username, id, err)
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
-		return
+		if err != nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+			return
+		}
+		code = http.StatusBadRequest
+	} else {
+		log.Infof("%s:%s successfully deleted user %s", claims.ID, claims.Username, id)
 	}
-	log.Infof("%s:%s successfully deleted user %s", claims.ID, claims.Username, id)
 	// Return a count of the # of entries deleted
 	result := struct {
-		Count int `json:"deletedEntries"`
-	}{1}
+		Count int `json:"deleteCount"`
+	}{cnt}
 	json.NewEncoder(response).Encode(result)
-	response.WriteHeader(http.StatusOK)
+	response.WriteHeader(code)
 }
 
 // GetUser return stored information for a specific user ID contained as the last path
@@ -189,8 +195,9 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 	}
 
 	// Retrieve the user ID from the URL
-	userID := path.Base(request.URL.EscapedPath())
-	if len(userID) == 0 {
+	p := request.URL.EscapedPath()
+	userID := path.Base(p)
+	if len(userID) == 0 || strings.HasSuffix(p, "/") {
 		// Request does not contain requested user
 		response.WriteHeader(http.StatusBadRequest)
 		response.Write([]byte(`{ "message": "Unable to fetch user data, no user id specified" }`))

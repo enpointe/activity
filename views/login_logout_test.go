@@ -76,10 +76,7 @@ func teardown(t *testing.T, server *views.ServerService) {
 // login helper function that logs the specified user in and
 // returns the JWT authentication token to use on subsequent request
 func login(t *testing.T, server *views.ServerService, creds client.Credentials) *http.Cookie {
-	requestBody, err := json.Marshal(map[string]string{
-		"username": creds.Username,
-		"password": creds.Password,
-	})
+	requestBody, err := json.Marshal(creds)
 	assert.NoError(t, err)
 	request := httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
 	response := httptest.NewRecorder()
@@ -168,5 +165,4 @@ func TestReuseOfToken(t *testing.T) {
 	response := httptest.NewRecorder()
 	server.GetUser(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
-
 }

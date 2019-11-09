@@ -91,11 +91,12 @@ func (s *UserService) Create(ctx context.Context, user *client.User) (string, er
 // DeleteUserData deletes the user associated with id and all
 // associated information associated with that user. Once deleted
 // the information can not be recovered.
-func (s *UserService) DeleteUserData(ctx context.Context, hexid string) error {
+// Return delete count if successful, error otherwise
+func (s *UserService) DeleteUserData(ctx context.Context, hexid string) (int, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(hexid)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", hexid, err)
-		return err
+		return 0, err
 	}
 
 	// session, err := s.client.StartSession()
@@ -132,9 +133,9 @@ func (s *UserService) DeleteUserData(ctx context.Context, hexid string) error {
 		log.Error(err)
 	}
 	if results.DeletedCount == 0 {
-		err = fmt.Errorf("failed to delete %s, no entry for record found", hexid)
+		log.Infof("failed to delete %s, no entry for record found", hexid)
 	}
-	return err
+	return int(results.DeletedCount), err
 }
 
 // DeleteAll deletes all user records
@@ -233,7 +234,6 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 		user := client.User{
 			ID:        elem.ID.Hex(),
 			Username:  elem.Username,
-			Password:  "-",
 			Privilege: elem.Privilege.String(),
 		}
 
