@@ -277,3 +277,25 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 	response.WriteHeader(http.StatusOK)
 	json.NewEncoder(response).Encode(user)
 }
+
+// UpdateUserPassword the password for a user
+func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request *http.Request) {
+	log.Trace("UpdateUserPassword request")
+	response.Header().Set("content-type", "application/json")
+	if request.Method != "POST" {
+		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		return
+	}
+	claims, httpStatus := validateClaim(response, request)
+	if httpStatus != http.StatusOK {
+		response.WriteHeader(httpStatus)
+		return
+	}
+
+	// TODO - Implement
+
+	log.Infof("%s:%s updated user password",
+		claims.ID, claims.Username)
+	response.WriteHeader(http.StatusOK)
+	return
+}

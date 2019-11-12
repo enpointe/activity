@@ -12,7 +12,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// catchFatal - log any Fatal error conditions before exiting.
+func catchFatal() {
+	err := recover()
+	if err != nil {
+		entry := err.(*logrus.Entry)
+		log.WithFields(logrus.Fields{
+			"err_level":   entry.Level,
+			"err_message": entry.Message,
+		}).Error("Server Panic")
+	}
+}
+
 func main() {
+	defer catchFatal()
 	dbURI := flag.String("dbURI", "mongodb://localhost:27017",
 		"URI used to connect to the mongo database, default is mongodb://localhost:27017")
 	adminPasswd := flag.String("admin", "", "Create an admin user and assign it the specified password")
@@ -65,6 +78,7 @@ func main() {
 	http.HandleFunc("/logout", server.Logout)
 	http.HandleFunc("/user/create", server.CreateUser)
 	http.HandleFunc("/user/delete/", server.DeleteUser)
+	http.HandleFunc("/user/update/", server.UpdateUserPassword)
 	http.HandleFunc("/user/", server.GetUser)
 	http.HandleFunc("/users/", server.GetUsers)
 	http.ListenAndServe(":8080", nil)
