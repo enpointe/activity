@@ -92,7 +92,7 @@ func TestAdminUpdatePassword(t *testing.T) {
 		request.AddCookie(tokenCookie)
 		response := httptest.NewRecorder()
 		server.UpdateUserPassword(response, request)
-		assert.Equal(t, http.StatusOK, response.Code)
+		assert.Equal(t, http.StatusOK, response.Code, user)
 	}
 }
 
@@ -150,7 +150,7 @@ func TestStaffUpdatePassword(t *testing.T) {
 		request.AddCookie(tokenCookie)
 		response := httptest.NewRecorder()
 		server.UpdateUserPassword(response, request)
-		assert.Equal(t, d.expectedResponse, response.Code)
+		assert.Equal(t, d.expectedResponse, response.Code, d.userInfo)
 	}
 }
 
@@ -201,6 +201,6 @@ func TestBasicUpdatePassword(t *testing.T) {
 		request.AddCookie(tokenCookie)
 		response := httptest.NewRecorder()
 		server.UpdateUserPassword(response, request)
-		assert.Equal(t, d.expectedResponse, response.Code)
+		assert.Equal(t, d.expectedResponse, response.Code, d.userInfo)
 	}
 }

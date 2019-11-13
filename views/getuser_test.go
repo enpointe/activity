@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestGetUserFailures test GetUser for general non permission failure scenarios
+// TestGetUserFailures test GetUser for some failure scenarios
 func TestGetUserFailures(t *testing.T) {
 	server := setup(t, testMultiUserFilenameJSON)
 	defer teardown(t, server)
@@ -17,146 +17,81 @@ func TestGetUserFailures(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	// Attempt to retrieve user details without specifying user
-	request := httptest.NewRequest("GET", "http:///activity/user/", nil)
+	// Fail due to POST
+	request := httptest.NewRequest("POST", "http:///activity/user/", nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
 	server.GetUser(response, request)
-	assert.Equal(t, http.StatusBadRequest, response.Code)
+	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
 
-	// Attempt to retrieve details about non-exist user
-	request = httptest.NewRequest("GET", "http:///activity/user/doesNotExist", nil)
-	request.AddCookie(tokenCookie)
+	// Attempt to retrieve details when token cookie is missing
+	request = httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
 	response = httptest.NewRecorder()
 	server.GetUser(response, request)
-	assert.Equal(t, http.StatusBadRequest, response.Code)
+	assert.Equal(t, http.StatusUnauthorized, response.Code)
+}
 
-	// Attempt to retrieve details when token has expired
-	request = httptest.NewRequest("GET", "http:///activity/user/doesNotExist", nil)
-	tokenCookie.MaxAge = 0
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusBadRequest, response.Code)
+type testGetUserData struct {
+	id               string
+	expectedResponse int
+}
+
+func getUserTest(t *testing.T, creds client.Credentials, testData []testGetUserData) {
+	server := setup(t, testMultiUserFilenameJSON)
+	defer teardown(t, server)
+	tokenCookie := login(t, server, creds)
+	defer logout(t, server, tokenCookie)
+
+	for _, d := range testData {
+		request := httptest.NewRequest("GET", "http:///activity/user/"+d.id, nil)
+		request.AddCookie(tokenCookie)
+		response := httptest.NewRecorder()
+		server.GetUser(response, request)
+		assert.Equalf(t, d.expectedResponse, response.Code,
+			"%s attempted to get user %s, expected '%s' got '%s'", creds.Username, d.id,
+			http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+	}
 }
 
 // TestGetUserViaAdmin test GetUser using a user with perm.ADMIN privileges
 func TestGetUserViaAdmin(t *testing.T) {
-	server := setup(t, testMultiUserFilenameJSON)
-	defer teardown(t, server)
 	creds := client.Credentials{Username: testAdmin1Username, Password: testAdmin1UserPassword}
-	tokenCookie := login(t, server, creds)
-	defer logout(t, server, tokenCookie)
-
-	// Attempt to retrieve details about the same user
-	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
-	request.AddCookie(tokenCookie)
-	response := httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	// Attempt to retrieve details about the another admin user
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testAdmin2ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	// Attempt to retrieve details about the admin user
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	// Attempt to retrieve details about the customer user
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
+	testData := []testGetUserData{
+		testGetUserData{testAdmin1ID, http.StatusOK},
+		testGetUserData{testAdmin2ID, http.StatusOK},
+		testGetUserData{testStaff1ID, http.StatusOK},
+		testGetUserData{testBasic1ID, http.StatusOK},
+		testGetUserData{"", http.StatusBadRequest},            // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusBadRequest}, // Attempt a get non-existent user
+	}
+	getUserTest(t, creds, testData)
 }
 
 // TestGetUserViaStaff test GetUser using a user with perm.STAFF privileges
 func TestGetUserViaStaff(t *testing.T) {
-	server := setup(t, testMultiUserFilenameJSON)
-	defer teardown(t, server)
 	creds := client.Credentials{Username: testStaff1Username, Password: testStaff1UserPassword}
-	tokenCookie := login(t, server, creds)
-	defer logout(t, server, tokenCookie)
-
-	// Staff user can retrieve a user with perm.ADMIN privilege,
-	// as no password information is sent back
-	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
-	request.AddCookie(tokenCookie)
-	response := httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	// Staff user can retrieve a user with perm.STAFF privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-
-	// Staff user can retrieve a user with perm.BASIC privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
+	testData := []testGetUserData{
+		testGetUserData{testAdmin1ID, http.StatusOK},
+		testGetUserData{testStaff1ID, http.StatusOK},
+		testGetUserData{testStaff2ID, http.StatusOK},
+		testGetUserData{testBasic1ID, http.StatusOK},
+		testGetUserData{"", http.StatusBadRequest},            // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusBadRequest}, // Attempt a get non-existent user
+	}
+	getUserTest(t, creds, testData)
 }
 
 // TestGetUserViaBasicr test GetUser using the basic privilege user
 func TestGetUserViaBasic(t *testing.T) {
-	server := setup(t, testMultiUserFilenameJSON)
-	defer teardown(t, server)
 	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
-	tokenCookie := login(t, server, creds)
-	defer logout(t, server, tokenCookie)
-
-	// Verify perm.BASIC will not allow retrieval of perm.ADMIN privilege user
-	request := httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
-	request.AddCookie(tokenCookie)
-	response := httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusUnauthorized, response.Code)
-
-	// Verify perm.BASIC will not allow retrieval of perm.STAFF privilege user
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testStaff1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusUnauthorized, response.Code)
-
-	// Staff user can retrieve a user with perm.BASIC privilege
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusOK, response.Code)
-}
-
-func TestGetUserFailure(t *testing.T) {
-
-	server := setup(t, testMultiUserFilenameJSON)
-	defer teardown(t, server)
-	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
-	tokenCookie := login(t, server, creds)
-	defer logout(t, server, tokenCookie)
-
-	// Fail because no user specified
-	request := httptest.NewRequest("GET", "http:///activity/user/", nil)
-	request.AddCookie(tokenCookie)
-	response := httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusBadRequest, response.Code)
-
-	// Fail due to POST
-	request = httptest.NewRequest("POST", "http:///activity/user/", nil)
-	request.AddCookie(tokenCookie)
-	response = httptest.NewRecorder()
-	server.GetUser(response, request)
-	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
+	testData := []testGetUserData{
+		testGetUserData{testAdmin1ID, http.StatusUnauthorized},
+		testGetUserData{testStaff1ID, http.StatusUnauthorized},
+		testGetUserData{testStaff2ID, http.StatusUnauthorized},
+		testGetUserData{testBasic1ID, http.StatusOK},
+		testGetUserData{testBasic2ID, http.StatusUnauthorized},
+		testGetUserData{"", http.StatusBadRequest},              // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusUnauthorized}, // Attempt a get non-existent user
+	}
+	getUserTest(t, creds, testData)
 }

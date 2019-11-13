@@ -32,32 +32,34 @@ func responseWithJSON(response http.ResponseWriter, json []byte, code int) {
 	response.Write(json)
 }
 
-// CreateUser create a user and add it to our list of known users
+// CreateUser create a user and add it to our list of known users.
 // The POST request should contain a JSON payload that specifies the JSON request
 // fields in client.User. The client.User.id field is ignored and is returned
 // in the result. The id returned represents the identifier for retrieving
 // information about that specific user.
 //
-// Restrictions:
-// A admin privilege user can create a user with any privilege level
-// A staff privilege user can create staff or basic privilege level user
-// A basic privilege user can not create any users
+// The privileges of the user invoking this method determine whether this operation
+// can be performed. A admin privileged user can create a user with any privilege level.
+// A staff privileged user can create a staff or a basic privilege level user.
+// A basic privilege user can not create any users. If the user doesn't have the
+// proper privileges then this operation will fail with http.StatusUnauthorized response.
+//
+// The JWT cookie, token will be validated to ensure the user is logged into the system
 func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.Request) {
 	log.Trace("CreateUser request")
-	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
 		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 	claims, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	// Only allow operation if the user is an staff or administrator
 	if !claims.Privilege.Grants(perm.Staff) {
-		response.WriteHeader(http.StatusUnauthorized)
+		errorWithJSON(response, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -72,7 +74,7 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		// Staff level user can not create an admin level user
 		log.Warnf("%s:%s attempted to create a administrator level user",
 			claims.ID, claims.Username)
-		response.WriteHeader(http.StatusUnauthorized)
+		errorWithJSON(response, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 	log.Tracef("Request by %s:%s to create new user %s with perm %s", claims.ID, claims.Username,
@@ -81,16 +83,14 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	id, err := userService.Create(ctx, &user)
 	if err != nil {
 		log.Error("Failed to create user ", err)
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	log.Infof("%s:%s created user %s:%s",
@@ -104,7 +104,15 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 	return
 }
 
-// DeleteUser delete the user specified in the URL request
+// DeleteUser delete the user specified as an ID as the last element in the URL path.
+//
+// The privileges of the user invoking this method determine whether this operation
+// can be performed. A admin privileged user can delete a user with any privilege level.
+// A staff privileged user can delete a staff or a basic privilege level user.
+// A basic privilege user can not delete any users. If the user doesn't have the
+// proper privileges then this operation will fail with http.StatusUnauthorized response.
+//
+// The JWT cookie, token will be validated to ensure the user is logged into the system
 func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.Request) {
 	log.Trace("DeleteUser request")
 	response.Header().Set("content-type", "application/json")
@@ -114,7 +122,7 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 	}
 	claims, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
@@ -134,14 +142,21 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		return
 	}
 
-	// TODO a staff user should be able to delete a admin user
+	// A user should not be able to delete themselves.
+	if claims.ID == id {
+		response.WriteHeader(http.StatusBadRequest)
+		response.Write([]byte(`{ "message": "Deletion of logged in user not allowed" }`))
+		return
+	}
+	// TODO a staff user should not be able to delete a admin user
 	// In order to accomplish this we'll need to fetch the user
 	// first before deleting.  Need to introduce a transaction to
 	// make this operation safe.
 	if claims.Privilege == perm.Staff {
-		// Make sure a staff user is not attempting to delete a Admin Privilege user
+		// TODO: Make sure a staff user is not attempting to delete a Admin Privilege user
 
 	}
+
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
@@ -190,7 +205,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 
 	claims, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
@@ -249,7 +264,7 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 
 	claims, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
@@ -288,7 +303,7 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 	}
 	claims, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 

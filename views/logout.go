@@ -7,13 +7,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Logout log the user out deleting all cookies associated with session
+// Logout log the user out deleting all cookies associated with session.
+// The authentication JWT cookie, token, associated with the user session will be expired.
 func (s *ServerService) Logout(response http.ResponseWriter, request *http.Request) {
 	response.Header().Set("content-type", "application/json")
 	token, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		response.WriteHeader(httpStatus)
 		log.Infof("%s:%s successfully logged out, token expired", token.ID, token.Username)
+		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
@@ -24,6 +25,6 @@ func (s *ServerService) Logout(response http.ResponseWriter, request *http.Reque
 		Expires: time.Now(),
 	})
 
-	log.Infof("successfully logged out %s:%s", token.ID, token.Username)
+	log.Infof("%s:%s successfully logged out", token.ID, token.Username)
 	response.WriteHeader(http.StatusOK)
 }
