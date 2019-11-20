@@ -150,6 +150,15 @@ func TestInvalidLogin(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
+func TestLogoutNoToken(t *testing.T) {
+	server := setup(t, testAdminFilenameJSON)
+	defer teardown(t, server)
+	request := httptest.NewRequest("POST", "http://logout", nil)
+	response := httptest.NewRecorder()
+	server.Logout(response, request)
+	assert.Equal(t, http.StatusUnauthorized, response.Code)
+}
+
 func TestReuseOfToken(t *testing.T) {
 	server := setup(t, testAdminFilenameJSON)
 	defer teardown(t, server)

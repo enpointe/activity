@@ -13,7 +13,9 @@ func (s *ServerService) Logout(response http.ResponseWriter, request *http.Reque
 	response.Header().Set("content-type", "application/json")
 	token, httpStatus := validateClaim(response, request)
 	if httpStatus != http.StatusOK {
-		log.Infof("%s:%s successfully logged out, token expired", token.ID, token.Username)
+		if token != nil {
+			log.Infof("%s:%s successfully logged out, token expired", token.ID, token.Username)
+		}
 		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
 		return
 	}

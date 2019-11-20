@@ -28,10 +28,10 @@ type activityClaims struct {
 // Login interface for allowing the user to acquire authorization
 // to execute methods for this application
 func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
-	response.Header().Set("content-type", "application/json")
 	if request.Method != "POST" {
 		log.Warning("unauthorized GET login attempt")
-		response.WriteHeader(http.StatusUnauthorized)
+		errorWithJSON(response,
+			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -39,7 +39,8 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	err := json.NewDecoder(request.Body).Decode(&creds)
 	if err != nil {
 		log.Warningf("invalid log attempt, bad payload: %s", request.Body)
-		response.WriteHeader(http.StatusUnauthorized)
+		errorWithJSON(response,
+			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
@@ -47,13 +48,15 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
+		errorWithJSON(response,
+			http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
 		log.Warning("Credentials didn't validate")
-		response.WriteHeader(http.StatusUnauthorized)
+		errorWithJSON(response,
+			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -78,7 +81,8 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	if err != nil {
 		// If there is an error in creating the JWT return an internal server error
 		log.Errorf("JWT signing issue: %s", err)
-		response.WriteHeader(http.StatusInternalServerError)
+		errorWithJSON(response,
+			http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,5 +94,7 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 		MaxAge: jwtExpirySeconds * 1000,
 	})
 	log.Infof("successfully logged in %s:%s", clientUser.ID, clientUser.Username)
+	response.Header().Set("content-type", "application/json")
+	json.NewEncoder(response).Encode(clientUser)
 	response.WriteHeader(http.StatusOK)
 }

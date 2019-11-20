@@ -72,7 +72,7 @@ func TestDeleteStaffPrivileges(t *testing.T) {
 	testData := []testDeleteData{
 		testDeleteData{testAdmin1ID, http.StatusUnauthorized}, // Delete of admin not allowed
 		testDeleteData{testStaff1ID, http.StatusBadRequest},   // Can't delete yourself
-		testDeleteData{testStaff2ID, http.StatusOK},
+		testDeleteData{testStaff2ID, http.StatusUnauthorized},
 		testDeleteData{testBasic1ID, http.StatusOK},
 	}
 	deleteTest(t, creds, testData)

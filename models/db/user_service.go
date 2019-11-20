@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 
@@ -14,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	//"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 // UsersCollection name of the collection used to hold user information
@@ -27,7 +29,12 @@ type UserService struct {
 
 // NewUserService create a new instance of the User Service
 func NewUserService(database *mongo.Database) (*UserService, error) {
+	// Set majority write concern
+	//wMajority := writeconcern.New(writeconcern.WMajority())
+	//collectionOptions := &options.CollectionOptions{WriteConcern: wMajority}
+	//collection := database.Collection(UsersCollection, collectionOptions)
 	collection := database.Collection(UsersCollection)
+
 	return &UserService{
 		Collection: collection}, nil
 }
@@ -81,6 +88,9 @@ func (s *UserService) Create(ctx context.Context, user *client.User) (string, er
 
 	result, err := s.Collection.InsertOne(ctx, &u)
 	if err != nil {
+		log.WithFields(log.Fields{
+			"document": u,
+		}).Debugf("user collection InsertOne() failed: %s", err)
 		err = fmt.Errorf("Unable to store user data in database, %s", err)
 		log.Error(err)
 		return "", err
@@ -125,10 +135,12 @@ func (s *UserService) DeleteUserData(ctx context.Context, hexid string) (int, er
 	// 	return err
 	// })
 	// session.EndSession(ctx)results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
-
-	results, err := s.Collection.DeleteOne(ctx, bson.M{"_id": idPrimitive})
+	filter := bson.M{"_id": idPrimitive}
+	results, err := s.Collection.DeleteOne(ctx, filter)
 	if err != nil {
-
+		log.WithFields(log.Fields{
+			"filter": filter,
+		}).Debugf("user collection DeleteOne() failed: %s", err)
 		err = fmt.Errorf("failed to delete %s, %s", hexid, err)
 		log.Error(err)
 	}
@@ -147,7 +159,9 @@ func (s *UserService) DeleteAll(ctx context.Context) error {
 func (s *UserService) findOne(ctx context.Context, filter interface{}) (*User, error) {
 	cursor := s.Collection.FindOne(ctx, filter)
 	if err := cursor.Err(); err != nil {
-		log.Debugf("user not found, %s", err)
+		log.WithFields(log.Fields{
+			"filter": filter,
+		}).Debugf("user collection FindOne() failed: %s", err)
 		err = fmt.Errorf("user not found")
 		return nil, err
 	}
@@ -179,7 +193,6 @@ func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, err
 	filter := bson.M{"_id": idPrimitive}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
-		log.Debug(err)
 		return nil, err
 	}
 	cUser := user.Convert()
@@ -188,13 +201,12 @@ func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, err
 
 // GetByUsername retrieve the user record via the passed in username
 func (s *UserService) GetByUsername(ctx context.Context, username string) (*client.User, error) {
-	log.WithFields(log.Fields{
-		"username": username,
-	}).Debug("GetByUserName - Enter")
 	filter := bson.D{primitive.E{Key: "user_id", Value: username}}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
-		log.Debug(err)
+		log.WithFields(log.Fields{
+			"filter": filter,
+		}).Debugf("user collection findOne() failed: %s", err)
 		return nil, err
 	}
 	cUser := user.Convert()
@@ -204,7 +216,6 @@ func (s *UserService) GetByUsername(ctx context.Context, username string) (*clie
 // GetAll return information about all users. Password
 // information for each user will simply be returned as "-"
 func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
-	log.Debug("GetAll - Enter")
 	var results []*client.User
 
 	// Set the projection for the request to not
@@ -214,7 +225,9 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 		bson.D{{}},
 		options.Find().SetProjection(projection))
 	if err != nil {
-		log.Debug(err)
+		log.WithFields(log.Fields{
+			"projection": projection,
+		}).Debugf("user collection Find() failed: %s", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -246,13 +259,30 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 	return results, nil
 }
 
+func (s *UserService) update(ctx context.Context, filter bson.M, update bson.M) (int64, error) {
+	updateResult, err := s.Collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"filter": filter,
+			"update": update,
+		}).Debugf("user collection UpdateOne()) failed: %s", err)
+		return 0, err
+	}
+	if updateResult.ModifiedCount != 1 {
+		err = errors.New("no match found")
+		return 0, err
+	}
+	return updateResult.ModifiedCount, nil
+}
+
 // Update update the user record represented by u.ID.
-// Only the Username, Password, and Privilege fields may be updated
-func (s *UserService) Update(ctx context.Context, u *client.User) error {
+// Only the Username, Password, and Privilege fields may be updated.
+// The password is assumed to have been encrptyed for storage.
+func (s *UserService) Update(ctx context.Context, u *client.User) (int, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(u.ID)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", u.ID, err)
-		return err
+		return 0, err
 	}
 	filter := bson.M{"_id": idPrimitive}
 	update := bson.M{"$set": bson.M{
@@ -260,17 +290,32 @@ func (s *UserService) Update(ctx context.Context, u *client.User) error {
 		"password":  u.Password,
 		"privilege": perm.Convert(u.Privilege),
 	}}
-	updateResult, err := s.Collection.UpdateOne(ctx, filter, update)
+	cnt, err := s.update(ctx, filter, update)
 	if err != nil {
-		err = fmt.Errorf("failed to update user %s, %s", u.ID, err)
-		log.Error(err)
-		return err
+		err = fmt.Errorf("Failed to update user '%s', %s", u.ID, err)
+		return 0, err
 	}
-	if updateResult.ModifiedCount != 1 {
-		err = fmt.Errorf("failed to update user %s, no match found", u.ID)
-		return err
+	return int(cnt), nil
+}
+
+// UpdatePassword updates the password for the specified ID.
+// The password is assumed to be encrypted.
+func (s *UserService) UpdatePassword(ctx context.Context, passInfo *client.PasswordUpdate) (int, error) {
+	idPrimitive, err := primitive.ObjectIDFromHex(passInfo.ID)
+	if err != nil {
+		err = fmt.Errorf("invalid id %s, %s", passInfo.ID, err)
+		return 0, err
 	}
-	return nil
+	filter := bson.M{"_id": idPrimitive}
+	update := bson.M{"$set": bson.M{
+		"password": passInfo.NewPassword,
+	}}
+	cnt, err := s.update(ctx, filter, update)
+	if err != nil {
+		err = fmt.Errorf("Failed to update user '%s', %s", passInfo.ID, err)
+		return 0, err
+	}
+	return int(cnt), nil
 }
 
 // Validate validate the credentials of the user

@@ -111,6 +111,7 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 			return nil, err
 		}
 		log.Infof("Successfully created admin user id %s", id)
+		server.adminPasswd = nil // don't keep password longer than needed
 		configured = true
 		err = nil
 	}

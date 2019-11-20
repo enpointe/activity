@@ -1,0 +1,6 @@
+# Ignore binary
+activity
+
+# Ignore log files
+*.log
+coverage.out

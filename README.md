@@ -49,13 +49,13 @@ Current status of work completed so far:
 ## Work outstanding
 
 * Add ability to log exercise workouts
-* Add exercise HTTP methods
 * Improve unit test
     * Investigate how to mock database calls
 * Integration Level testing
 * Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
 * Add database configuration for security
 * Add mechanism for prepopulating database with Exercises
+    * mongoimport is available via [mongo tools](https://github.com/mongodb/mongo-tools)
 * Examine whether view code should have some context cancel in it. See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
 * JWT secret key needs to be configurable.
     * Consider creating configuration file for this
@@ -129,7 +129,10 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJJRCI6IjVkYzJlZTVhNTY3ODU1ZGUyMWYxMDcwYSIsIlVzZXJuYW1lIjoiYWRtaW4iLCJQcml2aWxlZ2UiOjIsImV4cCI6MTU3MzA1OTY4N30.N0Wdplcr2b10FUliqdqA_fhqSdtaoGb7Lfw8-w4X6N4; Max-Age=1200000
 Date: Wed, 06 Nov 2019 16:41:27 GMT
-Content-Length: 0
+
+Content-Length: 88
+
+{"id":"5dd473f80afba91fa29e96ce","username":"admin","password":"-","privilege":"admin"}
 $ cat activity.cookies
 # Netscape HTTP Cookie File
 # https://curl.haxx.se/docs/http-cookies.html
@@ -166,9 +169,9 @@ Content-Type: application/json
 Date: Wed, 06 Nov 2019 16:43:18 GMT
 Content-Length: 178
 
-[{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc1"},"user_id":"customer1","password":"$2a$10$wN/f8n8RGoHbngeO3Ub1L.wCZxZhb98xu1mk9Ysvct47.YggtDrr.","privilege":0},
-{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc2"},"user_id":"staff","password":"$2a$10$u05g/b0wHvZAmEwd6ABt2.gPPQqD.LlypM.fta6coleTpQ0qdgRdK","privilege":1},
-{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"admin","password":"$2a$10$JwIOnVsJ1kFrcAZ657R0Euid19Ybapys7AtWfCVAqbJTDMx3oYnEu","privilege":2}]
+[{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc1"},"user_id":"customer1","password":"-","privilege":0},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc2"},"user_id":"staff","password":"-","privilege":1},
+{"_id":{"$oid":"5db8e02b0e7aa732afd7fbc4"},"user_id":"admin","password":"-","privilege":2}]
 ```
 
 ### {ServerURL}/user/{id} - Retrieve information about a particular user
@@ -208,7 +211,29 @@ Content-Length: 21
 
 {"deleteCount":1}
 ```
-**NOTE**: If the user that was requested to delete does not exist the HTTP Status 200 OK will be returned with a deleteCount of 0
+
+### {ServerURL}/user/update/ - Update password
+
+Updating the users password.  When updating the log in user the current password must be specified.
+
+```
+$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5dd473f80afba91fa29e96ce", "currentPassword":"changeMe", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/update/
+HTTP/1.1 200 OK
+Date: Tue, 19 Nov 2019 23:06:11 GMT
+Content-Length: 0
+
+```
+
+If a privilege user is updating/resetting the password of another user then the currentPassword does not need to be specified.
+
+```
+$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5db8e02b0e7aa732afd7fbc1", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/update/
+HTTP/1.1 200 OK
+Date: Tue, 19 Nov 2019 23:06:11 GMT
+Content-Length: 0
+
+```
+
 
 # Project Structure
 

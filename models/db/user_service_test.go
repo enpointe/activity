@@ -258,8 +258,9 @@ func TestUpdateUser(t *testing.T) {
 		Username: testUsername,
 		Password: testAdminUserPassword,
 	}
-	err := service.Update(ctx, &user)
+	cnt, err := service.Update(ctx, &user)
 	assert.NoError(t, err)
+	assert.Equal(t, 1, cnt)
 	// Fetch the user and check to make sure the password
 	// was updated
 	u, err := service.GetByID(ctx, testAdminID)
@@ -277,16 +278,17 @@ func TestUpdateFailures(t *testing.T) {
 		Password: testCustomerUserPassword,
 	}
 	// Test non existent user
-	err := service.Update(ctx, &user)
+	cnt, err := service.Update(ctx, &user)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to update")
+	assert.Equal(t, 0, cnt)
 
 	// Test base ID
 	user.ID = ""
-	err = service.Update(ctx, &user)
+	cnt, err = service.Update(ctx, &user)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid id")
-
+	assert.Equal(t, 0, cnt)
 }
 
 func TestLoadUserFromFile(t *testing.T) {

@@ -7,7 +7,7 @@ type User struct {
 	ID        string `json:"id,unique"`
 	Username  string `json:"username,unique"`
 	Password  string `json:"password,omitempty"`
-	Privilege string `json:"privilege"`
+	Privilege string `json:"privilege,omitempty"`
 }
 
 // UserService functions to associate with User struct

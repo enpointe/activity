@@ -25,18 +25,12 @@ type User struct {
 // NewUser transforms the web facing User structure
 // to a database compatible User structure. The ID field is
 // automatically set to a primitive.NewObjectID() any passed
-// in value is ignored.
+// in ID value is ignored. Username and Password fields
+// are checked for correctness.
 func NewUser(u *client.User) (*User, error) {
 	if !usernameCheck(u.Username) {
 		err := fmt.Errorf("invalid username specified. Username must be between 4-16 characters and composed of characters: a-z, A-Z, 0-9, -, and _")
 		return nil, err
-	}
-	// Only enforce that password is at least 8 characters long and contains no spaces
-	u.Password = strings.TrimSpace(u.Password)
-	if len(u.Password) < 8 {
-		err := fmt.Errorf("invalid password specified, minimum length is 8 characters")
-		return nil, err
-
 	}
 	user := User{
 		ID:        primitive.NewObjectID(),
@@ -49,6 +43,13 @@ func NewUser(u *client.User) (*User, error) {
 }
 
 func (u *User) setHashedPassword(password string) error {
+	// Only enforce that password is at least 8 characters long and contains no spaces
+	password = strings.TrimSpace(password)
+	if len(password) < 8 {
+		err := fmt.Errorf("invalid password specified, minimum length is 8 characters")
+		return err
+
+	}
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
