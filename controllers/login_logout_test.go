@@ -1,4 +1,4 @@
-package views_test
+package controllers_test
 
 import (
 	"bytes"
@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/enpointe/activity/controllers"
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
-	"github.com/enpointe/activity/views"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -45,15 +45,15 @@ const testBasic2UserPassword string = testAdmin1UserPassword
 // via the clear flag the current user collection entires can be
 // dropped. Setting the load flag causes the predefined user collection
 // entires in TestUserFilename to be inserted into the user collection.
-func setup(t *testing.T, userLoadFile string) *views.ServerService {
+func setup(t *testing.T, userLoadFile string) *controllers.ServerService {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-	opt := views.DBOptions(clientOptions)
+	opt := controllers.DBOptions(clientOptions)
 
 	// We need to have at least one admin user present in our database
 	// to proceed.
 
-	server, err := views.NewServerService(true, opt,
-		views.DBName(testDatabase))
+	server, err := controllers.NewServerService(true, opt,
+		controllers.DBName(testDatabase))
 	assert.NoError(t, err)
 	err = server.DeleteAll()
 	assert.NoError(t, err)
@@ -68,14 +68,14 @@ func setup(t *testing.T, userLoadFile string) *views.ServerService {
 
 // teardown - perform database teardown to ensure each
 // that the database is clean
-func teardown(t *testing.T, server *views.ServerService) {
+func teardown(t *testing.T, server *controllers.ServerService) {
 	err := server.DeleteAll()
 	assert.NoError(t, err)
 }
 
 // login helper function that logs the specified user in and
 // returns the JWT authentication token to use on subsequent request
-func login(t *testing.T, server *views.ServerService, creds client.Credentials) *http.Cookie {
+func login(t *testing.T, server *controllers.ServerService, creds client.Credentials) *http.Cookie {
 	requestBody, err := json.Marshal(creds)
 	assert.NoError(t, err)
 	request := httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
@@ -96,7 +96,7 @@ func login(t *testing.T, server *views.ServerService, creds client.Credentials) 
 }
 
 // logout logs the user out
-func logout(t *testing.T, server *views.ServerService, tokenCookie *http.Cookie) {
+func logout(t *testing.T, server *controllers.ServerService, tokenCookie *http.Cookie) {
 	request := httptest.NewRequest("POST", "http://logout", nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()

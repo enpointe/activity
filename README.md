@@ -40,11 +40,11 @@ The current state of this project
 Current status of work completed so far:
 
 * Basic Templates for database tables has been created
-* Initial model, view, controller layout has been created.
+* Initial model, controller layout has been created.
     * model db/client layout is being used to maintain a clear seperation of data objects
 * Initial http interfaces for user have been created
 * Basic login/logout with JWT authentication has been implemented.
-    * JWT token stored as a cookie in the session
+    * JWT token stored as a cookie 
 
 ## Work outstanding
 
@@ -222,6 +222,8 @@ HTTP/1.1 200 OK
 Date: Tue, 19 Nov 2019 23:06:11 GMT
 Content-Length: 0
 
+{"updateCount":1}
+
 ```
 
 If a privilege user is updating/resetting the password of another user then the currentPassword does not need to be specified.
@@ -231,6 +233,9 @@ $ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5db8e02b0e7aa732af
 HTTP/1.1 200 OK
 Date: Tue, 19 Nov 2019 23:06:11 GMT
 Content-Length: 0
+
+
+{"updateCount":1}
 
 ```
 
@@ -252,12 +257,12 @@ This project is laid out as a Go module in a hierachy to support the notion of M
 │   │   ├── user_service.go     // APIs for user collection
 ├── perm                        // Permission model for method access control
 │   └── priv.go                 // Permissions level used for access control
-├── views                       // View APIs for client
+├── controller                  // Controller APIs
 │       └── claims.go           // JWT claims
-│       └── login.go            // HTTP login interface
-│       └── logout.go           // HTTP logout interface
-│       └── server_service.go   // HTTP Server 
-│       └── users.go            // HTTP interface for interacting with the user model
+│       └── login.go            // HTTP login REST API interface
+│       └── logout.go           // HTTP logout REST API interface
+│       └── server_service.go   // HTTP Server Service
+│       └── users.go            // HTTP REST API interface for interacting with the user model
 ├── scripts                     // Scripts
 │   └── start-dev-container.sh  // Docker script for starting up development environment
 └── server.go                   // Server application

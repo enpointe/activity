@@ -280,7 +280,7 @@ func TestUpdateFailures(t *testing.T) {
 	// Test non existent user
 	cnt, err := service.Update(ctx, &user)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to update")
+	assert.Contains(t, err.Error(), "no match found")
 	assert.Equal(t, 0, cnt)
 
 	// Test base ID

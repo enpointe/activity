@@ -1,4 +1,4 @@
-package views_test
+package controllers_test
 
 import (
 	"bytes"

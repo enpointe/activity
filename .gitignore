@@ -1,6 +1,6 @@
-# Ignore binary
+# Ignore files 
 activity
-
-# Ignore log files
 *.log
 coverage.out
+admin_user.json
+activity.cookies

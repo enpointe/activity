@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/enpointe/activity/views"
+	"github.com/enpointe/activity/controllers"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -44,9 +44,9 @@ func main() {
 	}
 
 	clientOptions := options.Client().ApplyURI(*dbURI)
-	sOptions := []views.ServerOption{views.DBOptions(clientOptions)}
+	sOptions := []controllers.ServerOption{controllers.DBOptions(clientOptions)}
 	if len(*adminPasswd) > 0 {
-		sOptions = append(sOptions, views.CreateAdminUser([]byte(*adminPasswd)))
+		sOptions = append(sOptions, controllers.CreateAdminUser([]byte(*adminPasswd)))
 	}
 
 	var filename string = "activity.log"
@@ -68,7 +68,7 @@ func main() {
 	}
 	log.SetLevel(level)
 	log.Debug("Starting HTTP Server")
-	server, err := views.NewServerService(false, sOptions...)
+	server, err := controllers.NewServerService(false, sOptions...)
 	if err != nil {
 		fmt.Printf("%s\n\n", err.Error())
 		os.Exit(-2)
