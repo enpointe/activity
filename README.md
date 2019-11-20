@@ -257,7 +257,7 @@ This project is laid out as a Go module in a hierachy to support the notion of M
 │   │   ├── user_service.go     // APIs for user collection
 ├── perm                        // Permission model for method access control
 │   └── priv.go                 // Permissions level used for access control
-├── controller                  // Controller APIs
+├── controllers                 // Controller APIs
 │       └── claims.go           // JWT claims
 │       └── login.go            // HTTP login REST API interface
 │       └── logout.go           // HTTP logout REST API interface
