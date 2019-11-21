@@ -25,27 +25,31 @@ type activityClaims struct {
 	jwt.StandardClaims
 }
 
-// Login interface for allowing the user to acquire authorization
-// to execute methods for this application
+// Login interface for allowing the user to acquire authorization to execute methods
+// for this application. The privileges associated with a users account (client.UserInfo.Privilege)
+// will dictat what methods can be invoked by the user.
 // @Summary Login log a user into server
-// @Description log a user into the activity server
-// @Tags client.Credentials
+// @Description Log a user into the activity server, allowing the user to
+// @Description acquire authorization to execute methods for this application.
+// @Description The privileges associated with a users account (client.UserInfo.Privilege)
+// @Description will dictat what methods can be invoked by the user.
+// @Tags client.Credentials, client.UserInfo
 // @Param Credentials body client.Credentials true "Login Credentials"
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} client.User
+// @Success 200 {object} client.UserInfo
 // @Header 200 {string} auth "JWT Authentication Token"
-// @Failure 400 {object} APIError
-// @Failure 401 {object} APIError
-// @Failure 404 {object} APIError
-// @Failure 500 {object} APIError
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
 // @Security ApiKeyAuth
 // @Router /login [post]
 func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
 	if request.Method != "POST" {
-		log.Warning("unauthorized GET login attempt")
 		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 

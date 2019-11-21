@@ -1,0 +1,628 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This is a activity server, used to record workouts.",
+        "title": "Activity API",
+        "contact": {},
+        "license": {
+            "name": "Mit License",
+            "url": "https://github.com/enpointe/activity/blob/master/LICENSE"
+        },
+        "version": "2.1"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/login": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Log a user into the activity server, allowing the user to\nacquire authorization to execute methods for this application.\nThe privileges associated with a users account (client.UserInfo.Privilege)\nwill dictat what methods can be invoked by the user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.Credentials",
+                    "client.UserInfo"
+                ],
+                "summary": "Login log a user into server",
+                "parameters": [
+                    {
+                        "description": "Login Credentials",
+                        "name": "Credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/client.Credentials"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.UserInfo"
+                        },
+                        "headers": {
+                            "auth": {
+                                "type": "string",
+                                "description": "JWT Authentication Token"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Log out the current user.\nBy nature of how JWT tokens work if the token is cached, the old\ntoken can continue to be recognized as authorized till the token\nexpires",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Log out the current user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/create": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Create a user for the activity server.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed. A admin privileged user can create a user with any privilege level.\nA staff privileged user can create a staff or a basic privilege level user.\nA basic privilege user can not create any users.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.UserCreate Identity"
+                ],
+                "summary": "Create a user for the activity server",
+                "parameters": [
+                    {
+                        "description": "Configuration Data of the user being create",
+                        "name": "UserCreate",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/client.UserCreate"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.Identity"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized, if the user lacks privileges to perform operation",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/delete/{user_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete a user for the given ID.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed.\nA admin privileged user can delete a user with any privilege level.\nA staff privileged user can delete a basic privilege level user.\nA basic privilege user can not delete any users.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DeleteCount"
+                ],
+                "summary": "Delete a user from the activity server",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user to delete",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of items deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeleteCount"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized, if the user lacks privileges to perform operation",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found, if the ID of the user to delete is not found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/updatePasswd": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates the password for a given user. If a user is changing there own\npassword the current password must be specified.\n\nThe privileges of the user determine what password update operations can be performed.\nA user always has the necessary privileges to update their own password.\nA admin privileged user can update the password of any user.\nA staff privileged user can update the password for any basic privilege user.\nA basic privilege user can only update there own password.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.UserPassword"
+                ],
+                "summary": "Update the password for a user",
+                "parameters": [
+                    {
+                        "description": "Parameters for updating the specified users password",
+                        "name": "PasswordUpdate",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/client.PasswordUpdate"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.UpdateResults"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get the client.UserInfo data for the specified user ID.\nThe privileges (client.UserInfo.Privilege) of the user invoking this\nmethod are used to determine what requests can be satisfied.\nA admin and staff privileged user can fetch details about any user.\nA basic privilege user can only fetch details about themselves.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.UserInfo"
+                ],
+                "summary": "Get information about the specified user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the User to fetch details about",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.UserInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get client.UserInfo data for all known users.\nOnly admin and staff privileged users can perform this operation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.UserInfo"
+                ],
+                "summary": "Get user information for all users",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/client.UserInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "client.Credentials": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "example": "changeMe"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "client.PasswordUpdate": {
+            "type": "object",
+            "properties": {
+                "currentPassword": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "newPassword": {
+                    "type": "string"
+                }
+            }
+        },
+        "client.UserCreate": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "example": "myPassword"
+                },
+                "privilege": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "client.UserInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "5db8e02b0e7aa732afd7fbc4"
+                },
+                "privilege": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
+        "controllers.APIError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "message": {
+                    "type": "string",
+                    "example": "status bad request"
+                }
+            }
+        },
+        "controllers.DeleteCount": {
+            "type": "object",
+            "properties": {
+                "deleteCount": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "controllers.Identity": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "5db8e02b0e7aa732afd7fbc4"
+                }
+            }
+        },
+        "controllers.UpdateResults": {
+            "type": "object",
+            "properties": {
+                "updateCount": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

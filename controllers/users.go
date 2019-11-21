@@ -35,34 +35,40 @@ func errorWithJSON(response http.ResponseWriter, message string, code int) {
 	json.NewEncoder(response).Encode(error)
 }
 
+// Identity Used to return the ID of a create operation
+type Identity struct {
+	ID string `json:"id,unique" example:"5db8e02b0e7aa732afd7fbc4"`
+}
+
 // CreateUser create a user and add it to our list of known users.
 // The POST request should contain a JSON payload that specifies the JSON request
-// fields in client.User. The client.User.id field is ignored and is returned
-// in the result. The id returned represents the identifier for retrieving
+// fields in client.UserCreate. The id returned represents the identifier for retrieving
 // information about that specific user.
 //
 // The privileges of the user invoking this method determine whether this operation
 // can be performed. A admin privileged user can create a user with any privilege level.
 // A staff privileged user can create a staff or a basic privilege level user.
-// A basic privilege user can not create any users. If the user doesn't have the
-// proper privileges then this operation will fail with http.StatusUnauthorized response.
+// A basic privilege user can not create any users.
 //
 // The JWT cookie, token will be validated to ensure the user is logged into the system
 //
 // @Summary Create a user for the activity server
-// @Description create a user for the activity server
-// @Tags client.User
+// @Description Create a user for the activity server.
+// @Description The privileges of the user invoking this method determine whether this operation
+// @Description can be performed. A admin privileged user can create a user with any privilege level.
+// @Description A staff privileged user can create a staff or a basic privilege level user.
+// @Description A basic privilege user can not create any users.
+// @Tags client.UserCreate Identity
 // @Security ApiKeyAuth
 // @in header
 // @name Authorization
-// @Param Credentials body client.User true "Configuration Data of the user being added"
+// @Param UserCreate body client.UserCreate true "Configuration Data of the user being create"
 // @param Authorization header string true "The JWT authorization token acquired at login""
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} client.User
+// @Success 200 {object} Identity
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized"
-// @Failure 404 {object} APIError "Not Found"
+// @Failure 401 {object} APIError "Unauthorized, if the user lacks privileges to perform operation"
 // @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Router /user/create [post]
@@ -110,7 +116,6 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	id, err := userService.Create(ctx, &user)
 	if err != nil {
 		log.Error("Failed to create user ", err)
@@ -122,11 +127,14 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 	response.Header().Set("content-type", "application/json")
 	response.WriteHeader(http.StatusOK)
 	// Return the ID a result of creation
-	result := struct {
-		ID string `json:"id,unique" example:"5db8e02b0e7aa732afd7fbc4"`
-	}{id}
+	result := Identity{id}
 	json.NewEncoder(response).Encode(result)
 	return
+}
+
+// DeleteCount the
+type DeleteCount struct {
+	Count int `json:"deleteCount" example:"1"`
 }
 
 // DeleteUser delete the user specified as an ID as the last element in the URL path.
@@ -140,19 +148,24 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 //
 // The JWT cookie, token will be validated to ensure the user is logged into the systemgodoc
 // @Summary Delete a user from the activity server
-// @Description Delete a user for the given ID (client.User.ID)
-// @Tags client.User
+// @Description Delete a user for the given ID.
+// @Description The privileges of the user invoking this method determine whether this operation
+// @Description can be performed.
+// @Description A admin privileged user can delete a user with any privilege level.
+// @Description A staff privileged user can delete a basic privilege level user.
+// @Description A basic privilege user can not delete any users.
+// @Tags DeleteCount
 // @Security ApiKeyAuth
 // @in header
 // @name Authorization
-// @Param user_id path string true "ID of the User to delete"
+// @Param user_id path string true "ID of the user to delete"
 // @param Authorization header string true "The JWT authorization token acquired at login"
 // @Accept  json
 // @Produce  json
-// @Success 200 {integer} int "deleteCount"
+// @Success 200 {object} DeleteCount "Number of items deleted"
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized"
-// @Failure 404 {object} APIError "Not Found"
+// @Failure 401 {object} APIError "Unauthorized, if the user lacks privileges to perform operation"
+// @Failure 404 {object} APIError "Not Found, if the ID of the user to delete is not found"
 // @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Router /user/delete/{user_id} [delete]
@@ -231,30 +244,36 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 	log.Infof("%s:%s successfully deleted user %s", claims.ID, claims.Username, id)
 
 	// Return a count of the # of entries deleted
-	result := struct {
-		Count int `json:"deleteCount" example:"1"`
-	}{cnt}
+	result := DeleteCount{cnt}
 	response.Header().Set("content-type", "application/json")
 	json.NewEncoder(response).Encode(result)
 	response.WriteHeader(http.StatusOK)
 }
 
 // GetUser return stored information for a specific user ID contained as the last path
-// in the URL GET request.
-//
-// If the URL of the request is "user/5dc2ee5a567855de21f1070a" then
+// in the URL GET request. If the URL of the request is "user/5dc2ee5a567855de21f1070a" then
 // "5dc2ee5a567855de21f1070a" value will be the ID used to retrieve information for.
-// @Summary Get the specified user
-// @Description Get client.User data for the given user ID (client.User.ID)
-// @Tags client.User
+//
+// The privileges of the user invoking this method are used to determine what requests
+// can be satisfied.
+// A admin and staff privileged user can fetch details about any user.
+// A basic privilege user can only fetch details about themselves.
+//
+// @Summary Get information about the specified user
+// @Description Get the client.UserInfo data for the specified user ID.
+// @Description The privileges (client.UserInfo.Privilege) of the user invoking this
+// @Description method are used to determine what requests can be satisfied.
+// @Description A admin and staff privileged user can fetch details about any user.
+// @Description A basic privilege user can only fetch details about themselves.
+// @Tags client.UserInfo
 // @Security ApiKeyAuth
 // @in header
 // @name Authorization
-// @Param user_id path string true "ID of the User to delete"
+// @Param user_id path string true "ID of the User to fetch details about"
 // @param Authorization header string true "The JWT authorization token acquired at login"
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} client.User
+// @Success 200 {object} client.UserInfo
 // @Failure 400 {object} APIError "Bad Request"
 // @Failure 401 {object} APIError "Unauthorized"
 // @Failure 404 {object} APIError "Not Found"
@@ -315,17 +334,22 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 	json.NewEncoder(response).Encode(user)
 }
 
-// GetUsers A GET request that returns information about all known users
+// GetUsers A GET request that returns information about all known users.
+// Only admin and staff privileged users can perform this operation.
+//
+// The JWT cookie, token will be validated to ensure the user is logged into the system.
+//
 // @Summary Get user information for all users
-// @Description Get client.User data for all known users
-// @Tags client.User
+// @Description Get client.UserInfo data for all known users.
+// @Description Only admin and staff privileged users can perform this operation.
+// @Tags client.UserInfo
 // @Security ApiKeyAuth
 // @in header
 // @name Authorization
 // @param Authorization header string true "The JWT authorization token acquired at login"
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} client.User
+// @Success 200 {array} client.UserInfo
 // @Failure 400 {object} APIError "Bad Request"
 // @Failure 401 {object} APIError "Unauthorized"
 // @Failure 404 {object} APIError "Not Found"
@@ -370,12 +394,17 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 	json.NewEncoder(response).Encode(user)
 }
 
+// UpdateResults the results of the update operation
+type UpdateResults struct {
+	Count int `json:"updateCount" example:"1"`
+}
+
 // UpdateUserPassword the password for a user
 // The PATCH request should contain a JSON payload that specified the JSON
 // request fields used to update the password.
 //
 // The privileges of the user determine what password update operations can be performed.
-// A user can always has the necessary privileges to update their own password.
+// A user always has the necessary privileges to update their own password.
 // A admin privileged user can update the password of any user.
 // A staff privileged user can update the password for any basic privilege user.
 // A basic privilege user can only update there own password.
@@ -387,20 +416,20 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 // @Description password the current password must be specified.
 // @Description
 // @Description The privileges of the user determine what password update operations can be performed.
-// @Description A user can always has the necessary privileges to update their own password.
+// @Description A user always has the necessary privileges to update their own password.
 // @Description A admin privileged user can update the password of any user.
 // @Description A staff privileged user can update the password for any basic privilege user.
 // @Description A basic privilege user can only update there own password.
 //
-// @Tags client.User
+// @Tags client.UserPassword
 // @Security ApiKeyAuth
 // @in header
 // @name Authorization
-// @Param Credentials body client.User true "Configuration Data of the user being added"
+// @Param PasswordUpdate body client.PasswordUpdate true "Parameters for updating the specified users password"
 // @param Authorization header string true "The JWT authorization token acquired at login"
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} client.User
+// @Success 200 {object} UpdateResults
 // @Failure 400 {object} APIError "Bad Request"
 // @Failure 401 {object} APIError "Unauthorized"
 // @Failure 404 {object} APIError "Not Found"
@@ -496,9 +525,7 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 	log.Infof("%s:%s updated user password",
 		claims.ID, claims.Username)
 	// Return a count of the # of entries updated
-	result := struct {
-		Count int `json:"updateCount"`
-	}{cnt}
+	result := UpdateResults{cnt}
 	response.Header().Set("content-type", "application/json")
 	json.NewEncoder(response).Encode(result)
 	response.WriteHeader(http.StatusOK)

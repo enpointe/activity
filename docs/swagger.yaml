@@ -1,0 +1,445 @@
+basePath: /
+definitions:
+  client.Credentials:
+    properties:
+      password:
+        example: changeMe
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  client.PasswordUpdate:
+    properties:
+      currentPassword:
+        type: string
+      id:
+        type: string
+      newPassword:
+        type: string
+    type: object
+  client.UserCreate:
+    properties:
+      password:
+        example: myPassword
+        type: string
+      privilege:
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  client.UserInfo:
+    properties:
+      id:
+        example: 5db8e02b0e7aa732afd7fbc4
+        type: string
+      privilege:
+        example: admin
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+  controllers.APIError:
+    properties:
+      code:
+        example: 400
+        type: integer
+      message:
+        example: status bad request
+        type: string
+    type: object
+  controllers.DeleteCount:
+    properties:
+      deleteCount:
+        example: 1
+        type: integer
+    type: object
+  controllers.Identity:
+    properties:
+      id:
+        example: 5db8e02b0e7aa732afd7fbc4
+        type: string
+    type: object
+  controllers.UpdateResults:
+    properties:
+      updateCount:
+        example: 1
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a activity server, used to record workouts.
+  license:
+    name: Mit License
+    url: https://github.com/enpointe/activity/blob/master/LICENSE
+  title: Activity API
+  version: "2.1"
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Log a user into the activity server, allowing the user to
+        acquire authorization to execute methods for this application.
+        The privileges associated with a users account (client.UserInfo.Privilege)
+        will dictat what methods can be invoked by the user.
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: Credentials
+        required: true
+        schema:
+          $ref: '#/definitions/client.Credentials'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            auth:
+              description: JWT Authentication Token
+              type: string
+          schema:
+            $ref: '#/definitions/client.UserInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Login log a user into server
+      tags:
+      - client.Credentials
+      - client.UserInfo
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Log out the current user.
+        By nature of how JWT tokens work if the token is cached, the old
+        token can continue to be recognized as authorized till the token
+        expires
+      parameters:
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/string'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Log out the current user
+  /user/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get the client.UserInfo data for the specified user ID.
+        The privileges (client.UserInfo.Privilege) of the user invoking this
+        method are used to determine what requests can be satisfied.
+        A admin and staff privileged user can fetch details about any user.
+        A basic privilege user can only fetch details about themselves.
+      parameters:
+      - description: ID of the User to fetch details about
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.UserInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Get information about the specified user
+      tags:
+      - client.UserInfo
+  /user/create:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Create a user for the activity server.
+        The privileges of the user invoking this method determine whether this operation
+        can be performed. A admin privileged user can create a user with any privilege level.
+        A staff privileged user can create a staff or a basic privilege level user.
+        A basic privilege user can not create any users.
+      parameters:
+      - description: Configuration Data of the user being create
+        in: body
+        name: UserCreate
+        required: true
+        schema:
+          $ref: '#/definitions/client.UserCreate'
+          type: object
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.Identity'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized, if the user lacks privileges to perform operation
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a user for the activity server
+      tags:
+      - client.UserCreate Identity
+  /user/delete/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Delete a user for the given ID.
+        The privileges of the user invoking this method determine whether this operation
+        can be performed.
+        A admin privileged user can delete a user with any privilege level.
+        A staff privileged user can delete a basic privilege level user.
+        A basic privilege user can not delete any users.
+      parameters:
+      - description: ID of the user to delete
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of items deleted
+          schema:
+            $ref: '#/definitions/controllers.DeleteCount'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized, if the user lacks privileges to perform operation
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found, if the ID of the user to delete is not found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a user from the activity server
+      tags:
+      - DeleteCount
+  /user/updatePasswd:
+    patch:
+      consumes:
+      - application/json
+      description: |-
+        Updates the password for a given user. If a user is changing there own
+        password the current password must be specified.
+
+        The privileges of the user determine what password update operations can be performed.
+        A user always has the necessary privileges to update their own password.
+        A admin privileged user can update the password of any user.
+        A staff privileged user can update the password for any basic privilege user.
+        A basic privilege user can only update there own password.
+      parameters:
+      - description: Parameters for updating the specified users password
+        in: body
+        name: PasswordUpdate
+        required: true
+        schema:
+          $ref: '#/definitions/client.PasswordUpdate'
+          type: object
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.UpdateResults'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Update the password for a user
+      tags:
+      - client.UserPassword
+  /users/:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get client.UserInfo data for all known users.
+        Only admin and staff privileged users can perform this operation.
+      parameters:
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/client.UserInfo'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Get user information for all users
+      tags:
+      - client.UserInfo
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

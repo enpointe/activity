@@ -1,6 +1,6 @@
 # Simple makefile for building a testing module
 
-all: clean build test
+all: clean build swagger test
 
 build:
 	go build ./...
@@ -8,6 +8,10 @@ build:
 	
 test:
 	go test ./...
+
+swagger:
+	swag init
+	cd docs; go fmt
 
 coverage:
 	go test ./... -coverprofile=coverage.out | true
