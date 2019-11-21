@@ -27,7 +27,7 @@ type User struct {
 // automatically set to a primitive.NewObjectID() any passed
 // in ID value is ignored. Username and Password fields
 // are checked for correctness.
-func NewUser(u *client.User) (*User, error) {
+func NewUser(u *client.UserCreate) (*User, error) {
 	if !usernameCheck(u.Username) {
 		err := fmt.Errorf("invalid username specified. Username must be between 4-16 characters and composed of characters: a-z, A-Z, 0-9, -, and _")
 		return nil, err
@@ -62,13 +62,11 @@ func (u *User) comparePassword(password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 }
 
-// Convert transform into a client facing User object
-// Password is converted to "-"
-func (u *User) Convert() client.User {
-	return client.User{
+// Convert transform into a client facing UserInfo object
+func (u *User) Convert() client.UserInfo {
+	return client.UserInfo{
 		ID:        u.ID.Hex(),
 		Username:  u.Username,
-		Password:  "-",
 		Privilege: u.Privilege.String(),
 	}
 }

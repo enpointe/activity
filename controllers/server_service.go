@@ -100,7 +100,7 @@ func NewServerService(skipAdminCheck bool, opts ...ServerOption) (*ServerService
 			err = fmt.Errorf("admin privilege user already configured, request to create admin user rejected")
 			return nil, err
 		}
-		user := client.User{
+		user := client.UserCreate{
 			Username:  "admin",
 			Password:  string(server.adminPasswd),
 			Privilege: perm.Admin.String(),

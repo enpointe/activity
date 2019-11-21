@@ -2,8 +2,8 @@ package client
 
 // Credentials login credentials
 type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username" example:"admin"`
+	Password string `json:"password" example:"changeMe"`
 }
 
 // PasswordUpdate used to change the password for a given user

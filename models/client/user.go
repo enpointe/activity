@@ -1,22 +1,23 @@
 package client
 
-// User the user model for json http interface
-// The ID field is the identifier field for the
-// record associated with the User structure.
-type User struct {
-	ID        string `json:"id,unique"`
-	Username  string `json:"username,unique"`
-	Password  string `json:"password,omitempty"`
-	Privilege string `json:"privilege,omitempty"`
+// UserUpdate the model used to update a user
+type UserUpdate struct {
+	ID        string `json:"id,unique" example:"5db8e02b0e7aa732afd7fbc4"`
+	Username  string `json:"username,unique" example:"admin"`
+	Password  string `json:"password,omitempty" example:"myPassword"`
+	Privilege string `json:"privilege,omitempty" example:"admin"`
 }
 
-// UserService functions to associate with User struct
-type UserService interface {
-	Create(u *User) error
-	DeleteUserData(u *User) error
-	GetAll() ([]*User, error)
-	GetByID(id string) (*User, error)
-	GetByUsername(username string) (*User, error)
-	Update(u *User) error
-	Validate(c *Credentials) (*User, error)
+// UserCreate model used to create a user
+type UserCreate struct {
+	Username  string `json:"username,unique" example:"admin"`
+	Password  string `json:"password,omitempty" example:"myPassword"`
+	Privilege string `json:"privilege,omitempty" example:"admin"`
+}
+
+// UserInfo model used to return information about a given user
+type UserInfo struct {
+	ID        string `json:"id,unique" example:"5db8e02b0e7aa732afd7fbc4"`
+	Username  string `json:"username,unique" example:"admin"`
+	Privilege string `json:"privilege,omitempty" example:"admin"`
 }

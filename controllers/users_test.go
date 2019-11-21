@@ -40,7 +40,7 @@ func TestCreateUser(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	u := client.User{
+	u := client.UserCreate{
 		Username:  "kristina",
 		Password:  "changeMe",
 		Privilege: perm.Staff.String(),
@@ -70,7 +70,7 @@ func TestCreateBasicNoPrivileges(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	u := client.User{
+	u := client.UserCreate{
 		Username:  "kristina",
 		Password:  "changeMe",
 		Privilege: perm.Staff.String(),
@@ -92,7 +92,7 @@ func TestCreateAdminStaffPrivilege(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	u := client.User{
+	u := client.UserCreate{
 		Username:  "kristina",
 		Password:  "changeMe",
 		Privilege: perm.Admin.String(),

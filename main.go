@@ -10,6 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	"github.com/enpointe/activity/docs"
 )
 
 // catchFatal - log any Fatal error conditions before exiting.
@@ -24,6 +28,19 @@ func catchFatal() {
 	}
 }
 
+// @title Activity API
+// @version 2.1
+// @description This is a activity server, used to record workouts.
+
+// @license.name Mit License
+// @license.url https://github.com/enpointe/activity/blob/master/LICENSE
+
+// @host localhost:8080
+// @BasePath /
+// @tokenUrl https://jwt.io/
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	defer catchFatal()
 	dbURI := flag.String("dbURI", "mongodb://localhost:27017",
@@ -78,8 +95,17 @@ func main() {
 	http.HandleFunc("/logout", server.Logout)
 	http.HandleFunc("/user/create", server.CreateUser)
 	http.HandleFunc("/user/delete/", server.DeleteUser)
-	http.HandleFunc("/user/update/", server.UpdateUserPassword)
+	http.HandleFunc("/user/updatePasswd/", server.UpdateUserPassword)
 	http.HandleFunc("/user/", server.GetUser)
 	http.HandleFunc("/users/", server.GetUsers)
+
+	// programatically set swagger info
+	docs.SwaggerInfo.Title = "Activity API"
+	docs.SwaggerInfo.Description = "This is a Activity JSON server."
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.Host = "localhost:8080"
+	docs.SwaggerInfo.BasePath = "/"
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
+	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 	http.ListenAndServe(":8080", nil)
 }

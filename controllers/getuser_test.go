@@ -61,8 +61,8 @@ func TestGetUserViaAdmin(t *testing.T) {
 		testGetUserData{testAdmin2ID, http.StatusOK},
 		testGetUserData{testStaff1ID, http.StatusOK},
 		testGetUserData{testBasic1ID, http.StatusOK},
-		testGetUserData{"", http.StatusBadRequest},            // Attempt a get without specifying user
-		testGetUserData{"doesNotExit", http.StatusBadRequest}, // Attempt a get non-existent user
+		testGetUserData{"", http.StatusBadRequest},          // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusNotFound}, // Attempt a get non-existent user
 	}
 	getUserTest(t, creds, testData)
 }
@@ -75,8 +75,8 @@ func TestGetUserViaStaff(t *testing.T) {
 		testGetUserData{testStaff1ID, http.StatusOK},
 		testGetUserData{testStaff2ID, http.StatusOK},
 		testGetUserData{testBasic1ID, http.StatusOK},
-		testGetUserData{"", http.StatusBadRequest},            // Attempt a get without specifying user
-		testGetUserData{"doesNotExit", http.StatusBadRequest}, // Attempt a get non-existent user
+		testGetUserData{"", http.StatusBadRequest},          // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusNotFound}, // Attempt a get non-existent user
 	}
 	getUserTest(t, creds, testData)
 }

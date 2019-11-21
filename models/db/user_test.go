@@ -11,7 +11,7 @@ import (
 
 func TestNewUser(t *testing.T) {
 	// Add a new user
-	user := client.User{
+	user := client.UserCreate{
 		Username:  "wwomen",
 		Password:  "tellTheTruth",
 		Privilege: "admin",

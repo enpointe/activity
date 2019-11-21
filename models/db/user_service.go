@@ -40,7 +40,7 @@ func NewUserService(database *mongo.Database) (*UserService, error) {
 }
 
 // Create add a new user to the database
-func (s *UserService) Create(ctx context.Context, user *client.User) (string, error) {
+func (s *UserService) Create(ctx context.Context, user *client.UserCreate) (string, error) {
 	u, err := NewUser(user)
 	if err != nil {
 		return "", err
@@ -183,7 +183,7 @@ func (s *UserService) AdminUserExists(ctx context.Context) bool {
 }
 
 // GetByID retrieve the user record via the passed in username
-func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, error) {
+func (s *UserService) GetByID(ctx context.Context, id string) (*client.UserInfo, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", id, err)
@@ -200,7 +200,7 @@ func (s *UserService) GetByID(ctx context.Context, id string) (*client.User, err
 }
 
 // GetByUsername retrieve the user record via the passed in username
-func (s *UserService) GetByUsername(ctx context.Context, username string) (*client.User, error) {
+func (s *UserService) GetByUsername(ctx context.Context, username string) (*client.UserInfo, error) {
 	filter := bson.D{primitive.E{Key: "user_id", Value: username}}
 	user, err := s.findOne(ctx, filter)
 	if err != nil {
@@ -215,8 +215,8 @@ func (s *UserService) GetByUsername(ctx context.Context, username string) (*clie
 
 // GetAll return information about all users. Password
 // information for each user will simply be returned as "-"
-func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
-	var results []*client.User
+func (s *UserService) GetAll(ctx context.Context) ([]*client.UserInfo, error) {
+	var results []*client.UserInfo
 
 	// Set the projection for the request to not
 	// return the password field.
@@ -244,7 +244,7 @@ func (s *UserService) GetAll(ctx context.Context) ([]*client.User, error) {
 			return nil, err
 		}
 
-		user := client.User{
+		user := client.UserInfo{
 			ID:        elem.ID.Hex(),
 			Username:  elem.Username,
 			Privilege: elem.Privilege.String(),
@@ -278,7 +278,7 @@ func (s *UserService) update(ctx context.Context, filter bson.M, update bson.M) 
 // Update update the user record represented by u.ID.
 // Only the Username, Password, and Privilege fields may be updated.
 // The password is assumed to have been encrptyed for storage.
-func (s *UserService) Update(ctx context.Context, u *client.User) (int, error) {
+func (s *UserService) Update(ctx context.Context, u *client.UserUpdate) (int, error) {
 	idPrimitive, err := primitive.ObjectIDFromHex(u.ID)
 	if err != nil {
 		err = fmt.Errorf("invalid id %s, %s", u.ID, err)
@@ -319,7 +319,7 @@ func (s *UserService) UpdatePassword(ctx context.Context, passInfo *client.Passw
 }
 
 // Validate validate the credentials of the user
-func (s *UserService) Validate(ctx context.Context, c *client.Credentials) (*client.User, error) {
+func (s *UserService) Validate(ctx context.Context, c *client.Credentials) (*client.UserInfo, error) {
 
 	filter := bson.D{primitive.E{Key: "user_id", Value: c.Username}}
 	user, err := s.findOne(ctx, filter)

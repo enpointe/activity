@@ -27,6 +27,20 @@ type activityClaims struct {
 
 // Login interface for allowing the user to acquire authorization
 // to execute methods for this application
+// @Summary Login log a user into server
+// @Description log a user into the activity server
+// @Tags client.Credentials
+// @Param Credentials body client.Credentials true "Login Credentials"
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} client.User
+// @Header 200 {string} auth "JWT Authentication Token"
+// @Failure 400 {object} APIError
+// @Failure 401 {object} APIError
+// @Failure 404 {object} APIError
+// @Failure 500 {object} APIError
+// @Security ApiKeyAuth
+// @Router /login [post]
 func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
 	if request.Method != "POST" {
 		log.Warning("unauthorized GET login attempt")
@@ -89,7 +103,7 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	// Finally, we set the client cookie for "token" as the JWT we just generated
 	// we also set an expiry time which is the same as the token itself
 	http.SetCookie(response, &http.Cookie{
-		Name:   "token",
+		Name:   TokenCookie,
 		Value:  tokenString,
 		MaxAge: jwtExpirySeconds * 1000,
 	})

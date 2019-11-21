@@ -8,7 +8,6 @@ package controllers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path"
 	"strings"
@@ -20,10 +19,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// APIError Returns a error to the client
+type APIError struct {
+	ErrorCode    int    `json:"code" example:"400"`
+	ErrorMessage string `json:"message" example:"status bad request"`
+}
+
 func errorWithJSON(response http.ResponseWriter, message string, code int) {
 	response.Header().Set("Content-Type", "application/json; charset=utf-8")
 	response.WriteHeader(code)
-	fmt.Fprintf(response, `{ "message": "%q" }`, message)
+	error := APIError{
+		ErrorCode:    code,
+		ErrorMessage: message,
+	}
+	json.NewEncoder(response).Encode(error)
 }
 
 // CreateUser create a user and add it to our list of known users.
@@ -39,6 +48,24 @@ func errorWithJSON(response http.ResponseWriter, message string, code int) {
 // proper privileges then this operation will fail with http.StatusUnauthorized response.
 //
 // The JWT cookie, token will be validated to ensure the user is logged into the system
+//
+// @Summary Create a user for the activity server
+// @Description create a user for the activity server
+// @Tags client.User
+// @Security ApiKeyAuth
+// @in header
+// @name Authorization
+// @Param Credentials body client.User true "Configuration Data of the user being added"
+// @param Authorization header string true "The JWT authorization token acquired at login""
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} client.User
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
+// @Router /user/create [post]
 func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.Request) {
 	log.Trace("CreateUser request")
 	if request.Method != "POST" {
@@ -59,7 +86,7 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		return
 	}
 
-	var user client.User
+	var user client.UserCreate
 	err := json.NewDecoder(request.Body).Decode(&user)
 	if err != nil {
 		errorWithJSON(response, err.Error(), http.StatusBadRequest)
@@ -96,7 +123,7 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 	response.WriteHeader(http.StatusOK)
 	// Return the ID a result of creation
 	result := struct {
-		ID string `json:"id"`
+		ID string `json:"id,unique" example:"5db8e02b0e7aa732afd7fbc4"`
 	}{id}
 	json.NewEncoder(response).Encode(result)
 	return
@@ -111,10 +138,27 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 // A staff privileged user can delete a basic privilege level user.
 // A basic privilege user can not delete any users.
 //
-// The JWT cookie, token will be validated to ensure the user is logged into the system
+// The JWT cookie, token will be validated to ensure the user is logged into the systemgodoc
+// @Summary Delete a user from the activity server
+// @Description Delete a user for the given ID (client.User.ID)
+// @Tags client.User
+// @Security ApiKeyAuth
+// @in header
+// @name Authorization
+// @Param user_id path string true "ID of the User to delete"
+// @param Authorization header string true "The JWT authorization token acquired at login"
+// @Accept  json
+// @Produce  json
+// @Success 200 {integer} int "deleteCount"
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
+// @Router /user/delete/{user_id} [delete]
 func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.Request) {
 	log.Trace("DeleteUser request")
-	if request.Method != "POST" {
+	if request.Method != "DELETE" {
 		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return
@@ -188,7 +232,7 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 
 	// Return a count of the # of entries deleted
 	result := struct {
-		Count int `json:"deleteCount"`
+		Count int `json:"deleteCount" example:"1"`
 	}{cnt}
 	response.Header().Set("content-type", "application/json")
 	json.NewEncoder(response).Encode(result)
@@ -200,8 +244,24 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 //
 // If the URL of the request is "user/5dc2ee5a567855de21f1070a" then
 // "5dc2ee5a567855de21f1070a" value will be the ID used to retrieve information for.
+// @Summary Get the specified user
+// @Description Get client.User data for the given user ID (client.User.ID)
+// @Tags client.User
+// @Security ApiKeyAuth
+// @in header
+// @name Authorization
+// @Param user_id path string true "ID of the User to delete"
+// @param Authorization header string true "The JWT authorization token acquired at login"
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} client.User
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
+// @Router /user/{user_id} [get]
 func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Request) {
-	log.Trace("GetUser request")
 	if request.Method != "GET" {
 		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
@@ -247,7 +307,7 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 
 	user, err := userService.GetByID(ctx, userID)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusBadRequest)
+		errorWithJSON(response, err.Error(), http.StatusNotFound)
 		return
 	}
 	response.Header().Set("content-type", "application/json")
@@ -256,6 +316,22 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 }
 
 // GetUsers A GET request that returns information about all known users
+// @Summary Get user information for all users
+// @Description Get client.User data for all known users
+// @Tags client.User
+// @Security ApiKeyAuth
+// @in header
+// @name Authorization
+// @param Authorization header string true "The JWT authorization token acquired at login"
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} client.User
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
+// @Router /users/ [get]
 func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Request) {
 	log.Trace("GetUsers request")
 	if request.Method != "GET" {
@@ -295,7 +371,7 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 }
 
 // UpdateUserPassword the password for a user
-// The POST request should contain a JSON payload that specified the JSON
+// The PATCH request should contain a JSON payload that specified the JSON
 // request fields used to update the password.
 //
 // The privileges of the user determine what password update operations can be performed.
@@ -305,9 +381,35 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 // A basic privilege user can only update there own password.
 //
 // The JWT cookie, token will be validated to ensure the user is logged into the system
+//
+// @Summary Update the password for a user
+// @Description Updates the password for a given user. If a user is changing there own
+// @Description password the current password must be specified.
+// @Description
+// @Description The privileges of the user determine what password update operations can be performed.
+// @Description A user can always has the necessary privileges to update their own password.
+// @Description A admin privileged user can update the password of any user.
+// @Description A staff privileged user can update the password for any basic privilege user.
+// @Description A basic privilege user can only update there own password.
+//
+// @Tags client.User
+// @Security ApiKeyAuth
+// @in header
+// @name Authorization
+// @Param Credentials body client.User true "Configuration Data of the user being added"
+// @param Authorization header string true "The JWT authorization token acquired at login"
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} client.User
+// @Failure 400 {object} APIError "Bad Request"
+// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 404 {object} APIError "Not Found"
+// @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 500 {object} APIError "Internal Server Error"
+// @Router /user/updatePasswd [patch]
 func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request *http.Request) {
 	log.Trace("UpdateUserPassword request")
-	if request.Method != "POST" {
+	if request.Method != "PATCH" {
 		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return

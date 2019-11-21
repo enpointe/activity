@@ -24,7 +24,7 @@ func TestDeleteUser(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
 
 	// Test missing token
-	request = httptest.NewRequest("POST", "http://user/delete/"+testBasic1ID, nil)
+	request = httptest.NewRequest("DELETE", "http://user/delete/"+testBasic1ID, nil)
 	response = httptest.NewRecorder()
 	server.DeleteUser(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
@@ -43,7 +43,7 @@ func deleteTest(t *testing.T, creds client.Credentials, deleteData []testDeleteD
 	defer logout(t, server, tokenCookie)
 
 	for _, d := range deleteData {
-		request := httptest.NewRequest("POST", "http://user/Delete/"+d.id, nil)
+		request := httptest.NewRequest("DELETE", "http://user/Delete/"+d.id, nil)
 		request.AddCookie(tokenCookie)
 		response := httptest.NewRecorder()
 		server.DeleteUser(response, request)

@@ -70,7 +70,7 @@ func TestCreateUser(t *testing.T) {
 	ctx := context.TODO()
 
 	// Add a customer
-	user := client.User{
+	user := client.UserCreate{
 		Username: "customer1",
 		Password: "password",
 	}
@@ -79,7 +79,7 @@ func TestCreateUser(t *testing.T) {
 	assert.NotNil(t, id)
 
 	// Add a new staff user
-	user = client.User{
+	user = client.UserCreate{
 		Username:  "wwomen",
 		Password:  "password",
 		Privilege: perm.Staff.String(),
@@ -89,7 +89,7 @@ func TestCreateUser(t *testing.T) {
 	assert.NotNil(t, id)
 
 	// Attempt to add a different user
-	user = client.User{
+	user = client.UserCreate{
 		Username:  "altAdmin",
 		Password:  "changeMe",
 		Privilege: perm.Admin.String(),
@@ -105,7 +105,7 @@ func TestCreateUserFailures(t *testing.T) {
 	ctx := context.TODO()
 
 	// Test no user specified
-	user := client.User{
+	user := client.UserCreate{
 		Password: "password",
 	}
 	id, err := userService.Create(ctx, &user)
@@ -113,7 +113,7 @@ func TestCreateUserFailures(t *testing.T) {
 	assert.Empty(t, id)
 
 	// Test no password specified
-	user = client.User{
+	user = client.UserCreate{
 		Username: "customer1",
 	}
 	_, err = userService.Create(ctx, &user)
@@ -127,7 +127,7 @@ func TestCreateDuplicateUser(t *testing.T) {
 	ctx := context.TODO()
 
 	// Add a customer
-	user := client.User{
+	user := client.UserCreate{
 		Username: "customer1",
 		Password: "password",
 	}
@@ -161,7 +161,6 @@ func TestValidate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, len(user.ID) != 0)
 	assert.Equal(t, credentials.Username, user.Username)
-	assert.Equal(t, "-", user.Password)
 	assert.Equal(t, perm.Basic.String(), user.Privilege)
 
 	// Atempt to login with the improper credentials
@@ -253,10 +252,11 @@ func TestUpdateUser(t *testing.T) {
 	ctx := context.TODO()
 
 	testUsername := "admin2"
-	user := client.User{
-		ID:       testAdminID,
-		Username: testUsername,
-		Password: testAdminUserPassword,
+	user := client.UserUpdate{
+		ID:        testAdminID,
+		Username:  testUsername,
+		Password:  testAdminUserPassword,
+		Privilege: perm.Admin.String(),
 	}
 	cnt, err := service.Update(ctx, &user)
 	assert.NoError(t, err)
@@ -272,7 +272,7 @@ func TestUpdateFailures(t *testing.T) {
 	service := SetupUser(t, false, false)
 	ctx := context.TODO()
 
-	user := client.User{
+	user := client.UserUpdate{
 		ID:       "6666e02b0e7aa732afd7fbc4",
 		Username: testCustomerUsername,
 		Password: testCustomerUserPassword,

@@ -21,7 +21,7 @@ type Claims struct {
 }
 
 // TokenCookie the name for the JWT claims token
-const TokenCookie string = "token"
+const TokenCookie string = "auth"
 
 // validateClaim validate the JWT token string stored in the token cookie
 // Returns the claims structure if the JWT claim is validated. Returns http error

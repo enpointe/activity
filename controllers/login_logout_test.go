@@ -87,7 +87,7 @@ func login(t *testing.T, server *controllers.ServerService, creds client.Credent
 	cookies := response.Result().Cookies()
 	var tokenCookie *http.Cookie
 	for _, c := range cookies {
-		if c.Name == "token" {
+		if c.Name == controllers.TokenCookie {
 			tokenCookie = c
 		}
 	}

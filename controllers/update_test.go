@@ -36,12 +36,12 @@ func TestUpdateFailures(t *testing.T) {
 			expectedResponse: http.StatusMethodNotAllowed,
 		},
 		testData{ // No user specified
-			method:           "POST",
+			method:           "PATCH",
 			testUser:         "",
 			expectedResponse: http.StatusBadRequest,
 		},
 		testData{ // Request is fine but no JSON data
-			method:           "POST",
+			method:           "PATCH",
 			testUser:         testBasic1ID,
 			expectedResponse: http.StatusBadRequest,
 		},
@@ -56,7 +56,7 @@ func TestUpdateFailures(t *testing.T) {
 	}
 
 	// Test no token associated with request
-	request := httptest.NewRequest("POST", "http://user/Update/"+testBasic1ID, nil)
+	request := httptest.NewRequest("PATCH", "http://user/Update/"+testBasic1ID, nil)
 	response := httptest.NewRecorder()
 	server.UpdateUserPassword(response, request)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
@@ -71,7 +71,7 @@ func testUserUpdatePassword(t *testing.T, creds client.Credentials, testData []u
 	for _, d := range testData {
 		requestBody, err := json.Marshal(d.userInfo)
 		assert.NoError(t, err)
-		request := httptest.NewRequest("POST", "http://user/UpdateUserPassword", bytes.NewBuffer(requestBody))
+		request := httptest.NewRequest("PATCH", "http://user/UpdateUserPassword", bytes.NewBuffer(requestBody))
 		request.AddCookie(tokenCookie)
 		response := httptest.NewRecorder()
 		server.UpdateUserPassword(response, request)

@@ -51,7 +51,6 @@ Current status of work completed so far:
 * Add ability to log exercise workouts
 * Improve unit test
     * Investigate how to mock database calls
-* Integration Level testing
 * Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
 * Add database configuration for security
 * Add mechanism for prepopulating database with Exercises
@@ -203,7 +202,7 @@ Content-Length: 34
 ### {ServerURL}/user/delete/{id} - Delete user with id
 
 ```
-$ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X POST http://localhost:8080/user/delete/5dc3227a3ff84c7a8374616d
+$ curl -i -b activity.cookies -c activity.cookies  -H "Content-Type: application/json" -X DELETE http://localhost:8080/user/delete/5dc3227a3ff84c7a8374616d
 HTTP/1.1 200 OK
 Content-Type: application/json
 Date: Wed, 06 Nov 2019 19:44:11 GMT
@@ -217,7 +216,7 @@ Content-Length: 21
 Updating the users password.  When updating the log in user the current password must be specified.
 
 ```
-$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5dd473f80afba91fa29e96ce", "currentPassword":"changeMe", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/update/
+$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5dd473f80afba91fa29e96ce", "currentPassword":"changeMe", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X PATCH http://localhost:8080/user/updatePasswd/
 HTTP/1.1 200 OK
 Date: Tue, 19 Nov 2019 23:06:11 GMT
 Content-Length: 0
@@ -229,7 +228,7 @@ Content-Length: 0
 If a privilege user is updating/resetting the password of another user then the currentPassword does not need to be specified.
 
 ```
-$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5db8e02b0e7aa732afd7fbc1", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X POST http://localhost:8080/user/update/
+$ curl -i -b activity.cookies -c activity.cookies  -d '{"id":"5db8e02b0e7aa732afd7fbc1", "newPassword":"newPassword"}' -H "Content-Type: application/json" -X PATCH http://localhost:8080/user/updatePasswd/
 HTTP/1.1 200 OK
 Date: Tue, 19 Nov 2019 23:06:11 GMT
 Content-Length: 0
@@ -275,4 +274,5 @@ References used during the development of this project
 
 * [Make yourself a Go web server with MongoDb](https://medium.com/hackernoon/make-yourself-a-go-web-server-with-mongodb-go-on-go-on-go-on-48f394f24e)
 * [Implementing JWT based authentication in Golang](https://www.sohamkamani.com/blog/golang/2019-01-01-jwt-authentication/)
-
+* [Build and Deploy a secure REST API with Go, Postgresql, JWT and GORM](https://medium.com/@adigunhammedolalekan/build-and-deploy-a-secure-rest-api-with-go-postgresql-jwt-and-gorm-6fadf3da505b)
+* [Setting Up Swagger Docs for Golang API](https://towardsdatascience.com/setting-up-swagger-docs-for-golang-api-8d0442263641)
