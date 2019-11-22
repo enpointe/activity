@@ -1,11 +1,13 @@
 package controllers_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/enpointe/activity/models/client"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,17 +19,22 @@ func TestGetUserFailures(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	// Fail due to POST
-	request := httptest.NewRequest("POST", "http:///activity/user/", nil)
+	// Fail due to missing id parameter data
+	request := httptest.NewRequest(http.MethodPost, "http:///activity/user/", nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
-	server.GetUser(response, request)
+	server.GetUser(response, request, nil)
 	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
 
 	// Attempt to retrieve details when token cookie is missing
-	request = httptest.NewRequest("GET", "http:///activity/user/"+testAdmin1ID, nil)
+	request = httptest.NewRequest(http.MethodGet, "http:///activity/user/"+testAdmin1ID, nil)
 	response = httptest.NewRecorder()
-	server.GetUser(response, request)
+	ps := httprouter.Params{
+		httprouter.Param{
+			Key:   "id",
+			Value: testAdmin1ID},
+	}
+	server.GetUser(response, request, ps)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
@@ -43,13 +50,22 @@ func getUserTest(t *testing.T, creds client.Credentials, testData []testGetUserD
 	defer logout(t, server, tokenCookie)
 
 	for _, d := range testData {
-		request := httptest.NewRequest("GET", "http:///activity/user/"+d.id, nil)
-		request.AddCookie(tokenCookie)
-		response := httptest.NewRecorder()
-		server.GetUser(response, request)
-		assert.Equalf(t, d.expectedResponse, response.Code,
-			"%s attempted to get user %s, expected '%s' got '%s'", creds.Username, d.id,
-			http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+		t.Run(fmt.Sprintf("ID-%s", d.id),
+			func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodGet, "http://users/"+d.id, nil)
+				request.AddCookie(tokenCookie)
+				response := httptest.NewRecorder()
+				ps := httprouter.Params{
+					httprouter.Param{
+						Key:   "id",
+						Value: d.id,
+					},
+				}
+				server.GetUser(response, request, ps)
+				assert.Equalf(t, d.expectedResponse, response.Code,
+					"%s attempted to get user %s, expected '%s' got '%s'", creds.Username, d.id,
+					http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+			})
 	}
 }
 
@@ -85,13 +101,13 @@ func TestGetUserViaStaff(t *testing.T) {
 func TestGetUserViaBasic(t *testing.T) {
 	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
 	testData := []testGetUserData{
-		testGetUserData{testAdmin1ID, http.StatusUnauthorized},
-		testGetUserData{testStaff1ID, http.StatusUnauthorized},
-		testGetUserData{testStaff2ID, http.StatusUnauthorized},
+		testGetUserData{testAdmin1ID, http.StatusForbidden},
+		testGetUserData{testStaff1ID, http.StatusForbidden},
+		testGetUserData{testStaff2ID, http.StatusForbidden},
 		testGetUserData{testBasic1ID, http.StatusOK},
-		testGetUserData{testBasic2ID, http.StatusUnauthorized},
-		testGetUserData{"", http.StatusBadRequest},              // Attempt a get without specifying user
-		testGetUserData{"doesNotExit", http.StatusUnauthorized}, // Attempt a get non-existent user
+		testGetUserData{testBasic2ID, http.StatusForbidden},
+		testGetUserData{"", http.StatusBadRequest},           // Attempt a get without specifying user
+		testGetUserData{"doesNotExit", http.StatusForbidden}, // Attempt a get non-existent user
 	}
 	getUserTest(t, creds, testData)
 }

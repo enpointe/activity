@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -27,25 +28,19 @@ import (
 // @Success 200 {object} string "OK"
 // @Failure 400 {object} APIError "Bad Request"
 // @Failure 401 {object} APIError "Unauthorized"
-// @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Router /logout [post]
-func (s *ServerService) Logout(response http.ResponseWriter, request *http.Request) {
-	if request.Method != "POST" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
-		return
-	}
-	token, httpStatus := validateClaim(response, request)
+func (s *ServerService) Logout(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	token, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
 		if token != nil {
 			log.Infof("%s:%s successfully logged out, token expired", token.ID, token.Username)
 		}
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
-	http.SetCookie(response, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:    "token",
 		Value:   "",
 		MaxAge:  -1, // Delete Now
@@ -53,6 +48,6 @@ func (s *ServerService) Logout(response http.ResponseWriter, request *http.Reque
 	})
 
 	log.Infof("%s:%s successfully logged out", token.ID, token.Username)
-	response.Header().Set("content-type", "application/json")
-	response.WriteHeader(http.StatusOK)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }

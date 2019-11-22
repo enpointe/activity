@@ -11,6 +11,7 @@ import (
 	"github.com/enpointe/activity/controllers"
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -78,9 +79,9 @@ func teardown(t *testing.T, server *controllers.ServerService) {
 func login(t *testing.T, server *controllers.ServerService, creds client.Credentials) *http.Cookie {
 	requestBody, err := json.Marshal(creds)
 	assert.NoError(t, err)
-	request := httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
+	request := httptest.NewRequest(http.MethodPost, "http://login", bytes.NewBuffer(requestBody))
 	response := httptest.NewRecorder()
-	server.Login(response, request)
+	server.Login(response, request, nil)
 	assert.Equal(t, http.StatusOK, response.Code)
 
 	// Check to make sure the cookie token is present
@@ -97,10 +98,10 @@ func login(t *testing.T, server *controllers.ServerService, creds client.Credent
 
 // logout logs the user out
 func logout(t *testing.T, server *controllers.ServerService, tokenCookie *http.Cookie) {
-	request := httptest.NewRequest("POST", "http://logout", nil)
+	request := httptest.NewRequest(http.MethodPost, "http://logout", nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
-	server.Logout(response, request)
+	server.Logout(response, request, nil)
 	assert.Equal(t, http.StatusOK, response.Code)
 }
 
@@ -122,9 +123,9 @@ func TestInvalidLogin(t *testing.T) {
 		"password": "",
 	})
 	assert.NoError(t, err)
-	request := httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
+	request := httptest.NewRequest(http.MethodPost, "http://login", bytes.NewBuffer(requestBody))
 	response := httptest.NewRecorder()
-	server.Login(response, request)
+	server.Login(response, request, nil)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Test bad password
@@ -133,9 +134,9 @@ func TestInvalidLogin(t *testing.T) {
 		"password": "badPassword",
 	})
 	assert.NoError(t, err)
-	request = httptest.NewRequest("POST", "http://login", bytes.NewBuffer(requestBody))
+	request = httptest.NewRequest(http.MethodPost, "http://login", bytes.NewBuffer(requestBody))
 	response = httptest.NewRecorder()
-	server.Login(response, request)
+	server.Login(response, request, nil)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 
 	// Test GET request instead of a POST
@@ -144,18 +145,18 @@ func TestInvalidLogin(t *testing.T) {
 		"password": "badPassword",
 	})
 	assert.NoError(t, err)
-	request = httptest.NewRequest("GET", "http://login", bytes.NewBuffer(requestBody))
+	request = httptest.NewRequest(http.MethodGet, "http://login", bytes.NewBuffer(requestBody))
 	response = httptest.NewRecorder()
-	server.Login(response, request)
+	server.Login(response, request, nil)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
 func TestLogoutNoToken(t *testing.T) {
 	server := setup(t, testAdminFilenameJSON)
 	defer teardown(t, server)
-	request := httptest.NewRequest("POST", "http://logout", nil)
+	request := httptest.NewRequest(http.MethodPost, "http://logout", nil)
 	response := httptest.NewRecorder()
-	server.Logout(response, request)
+	server.Logout(response, request, nil)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
@@ -169,9 +170,15 @@ func TestReuseOfToken(t *testing.T) {
 
 	// Try to perform an action using the original token cookie
 	// This should fail because the user logged out.
-	request := httptest.NewRequest("GET", "http:///activity/user/"+testBasic1ID, nil)
+	request := httptest.NewRequest(http.MethodGet, "http:///activity/user/"+testBasic1ID, nil)
 	request.AddCookie(tokenCookie)
 	response := httptest.NewRecorder()
-	server.GetUser(response, request)
+	ps := httprouter.Params{
+		httprouter.Param{
+			Key:   "id",
+			Value: testBasic1ID,
+		},
+	}
+	server.GetUser(response, request, ps)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }

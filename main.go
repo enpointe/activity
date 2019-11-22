@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/enpointe/activity/controllers"
+	"github.com/julienschmidt/httprouter"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -26,6 +27,11 @@ func catchFatal() {
 			"err_message": entry.Message,
 		}).Error("Server Panic")
 	}
+}
+
+// swagger Serve swagger
+func swagger(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	httpSwagger.WrapHandler.ServeHTTP(w, r)
 }
 
 // @title Activity API
@@ -90,14 +96,14 @@ func main() {
 		fmt.Printf("%s\n\n", err.Error())
 		os.Exit(-2)
 	}
-
-	http.HandleFunc("/login", server.Login)
-	http.HandleFunc("/logout", server.Logout)
-	http.HandleFunc("/user/create", server.CreateUser)
-	http.HandleFunc("/user/delete/", server.DeleteUser)
-	http.HandleFunc("/user/updatePasswd/", server.UpdateUserPassword)
-	http.HandleFunc("/user/", server.GetUser)
-	http.HandleFunc("/users/", server.GetUsers)
+	router := httprouter.New()
+	router.POST("/login", server.Login)
+	router.POST("/logout", server.Logout)
+	router.POST("/users", server.CreateUser)
+	router.DELETE("/users", server.DeleteUser)
+	router.GET("/users", server.GetUsers)
+	router.GET("/users/:id", server.GetUser)
+	router.PATCH("/users/", server.UpdateUserPassword)
 
 	// programatically set swagger info
 	docs.SwaggerInfo.Title = "Activity API"
@@ -106,6 +112,6 @@ func main() {
 	docs.SwaggerInfo.Host = "localhost:8080"
 	docs.SwaggerInfo.BasePath = "/"
 	docs.SwaggerInfo.Schemes = []string{"http", "https"}
-	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
-	http.ListenAndServe(":8080", nil)
+	router.GET("/swagger/", swagger)
+	log.Fatal(http.ListenAndServe(":8080", router))
 }

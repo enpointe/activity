@@ -14,7 +14,7 @@ func TestMissingClaimsCookie(t *testing.T) {
 	server := setup(t, "")
 	request := httptest.NewRequest("GET", "http://users", nil)
 	response := httptest.NewRecorder()
-	server.GetUser(response, request)
+	server.GetUser(response, request, nil)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
@@ -30,6 +30,6 @@ func TestInvalidClaim(t *testing.T) {
 	request := httptest.NewRequest("GET", "http:///activity/users/", nil)
 	request.AddCookie(&tokenToModify)
 	response := httptest.NewRecorder()
-	server.GetUser(response, request)
+	server.GetUser(response, request, nil)
 	assert.Equal(t, http.StatusBadRequest, response.Code)
 }

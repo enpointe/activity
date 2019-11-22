@@ -91,6 +91,11 @@ A convience Makefile is provided to build the application.
 $ make
 ```
 
+Regenerating or changing the swagger documentation requires the installation of swaggo for information
+on the installation of this tool see 
+[Swaggo Swag Getting Started](https://github.com/swaggo/swag#getting-started). The 'swag' command
+must be findable in your PATH.
+
 # Running
 
 ## Starting the Activity Server

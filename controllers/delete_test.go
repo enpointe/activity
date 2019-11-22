@@ -1,11 +1,13 @@
 package controllers_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/enpointe/activity/models/client"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,17 +18,16 @@ func TestDeleteUser(t *testing.T) {
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
-	// Test as a invalid GET request
-	request := httptest.NewRequest("GET", "http://user/delete/"+testBasic1ID, nil)
-	request.AddCookie(tokenCookie)
-	response := httptest.NewRecorder()
-	server.DeleteUser(response, request)
-	assert.Equal(t, http.StatusMethodNotAllowed, response.Code)
-
 	// Test missing token
-	request = httptest.NewRequest("DELETE", "http://user/delete/"+testBasic1ID, nil)
-	response = httptest.NewRecorder()
-	server.DeleteUser(response, request)
+	request := httptest.NewRequest(http.MethodDelete, "http://users/"+testBasic1ID, nil)
+	response := httptest.NewRecorder()
+	ps := httprouter.Params{
+		httprouter.Param{
+			Key:   "id",
+			Value: testBasic1ID,
+		},
+	}
+	server.DeleteUser(response, request, ps)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
@@ -43,13 +44,21 @@ func deleteTest(t *testing.T, creds client.Credentials, deleteData []testDeleteD
 	defer logout(t, server, tokenCookie)
 
 	for _, d := range deleteData {
-		request := httptest.NewRequest("DELETE", "http://user/Delete/"+d.id, nil)
-		request.AddCookie(tokenCookie)
-		response := httptest.NewRecorder()
-		server.DeleteUser(response, request)
-		assert.Equalf(t, d.expectedResponse, response.Code,
-			"%s attempted to delete user ID %s, expected '%s' got '%s'", creds.Username, d.id,
-			http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+		t.Run(fmt.Sprintf("ID-%s", d.id),
+			func(t *testing.T) {
+				request := httptest.NewRequest(http.MethodDelete, "http://user/Delete/"+d.id, nil)
+				request.AddCookie(tokenCookie)
+				response := httptest.NewRecorder()
+				ps := httprouter.Params{
+					httprouter.Param{
+						Key:   "id",
+						Value: d.id},
+				}
+				server.DeleteUser(response, request, ps)
+				assert.Equalf(t, d.expectedResponse, response.Code,
+					"%s attempted to delete user ID %s, expected '%s' got '%s'", creds.Username, d.id,
+					http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+			})
 	}
 }
 
@@ -70,9 +79,9 @@ func TestDeleteAdminPrivileges(t *testing.T) {
 func TestDeleteStaffPrivileges(t *testing.T) {
 	creds := client.Credentials{Username: testStaff1Username, Password: testStaff1UserPassword}
 	testData := []testDeleteData{
-		testDeleteData{testAdmin1ID, http.StatusUnauthorized}, // Delete of admin not allowed
-		testDeleteData{testStaff1ID, http.StatusBadRequest},   // Can't delete yourself
-		testDeleteData{testStaff2ID, http.StatusUnauthorized},
+		testDeleteData{testAdmin1ID, http.StatusForbidden},  // Delete of admin not allowed
+		testDeleteData{testStaff1ID, http.StatusBadRequest}, // Can't delete yourself
+		testDeleteData{testStaff2ID, http.StatusForbidden},
 		testDeleteData{testBasic1ID, http.StatusOK},
 	}
 	deleteTest(t, creds, testData)
@@ -82,9 +91,9 @@ func TestDeleteStaffPrivileges(t *testing.T) {
 func TestDeleteBasicPrivileges(t *testing.T) {
 	creds := client.Credentials{Username: testBasic1Username, Password: testBasic1UserPassword}
 	testData := []testDeleteData{
-		testDeleteData{testAdmin1ID, http.StatusUnauthorized},
-		testDeleteData{testStaff1ID, http.StatusUnauthorized},
-		testDeleteData{testBasic1ID, http.StatusUnauthorized},
+		testDeleteData{testAdmin1ID, http.StatusForbidden},
+		testDeleteData{testStaff1ID, http.StatusForbidden},
+		testDeleteData{testBasic1ID, http.StatusForbidden},
 	}
 	deleteTest(t, creds, testData)
 }

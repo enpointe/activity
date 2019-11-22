@@ -3,7 +3,6 @@ package db
 import (
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/perm"
@@ -11,8 +10,22 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// UsernameCheck regular expression pattern for allowed username
-var usernameCheck = regexp.MustCompile(`^[A-Za-z0-9_-]{4,16}$`).MatchString
+// usernameCheck regular expression pattern for allowed username
+//
+// NOTE: As this is a test project our username requirements are currently
+// dictated in a small part via the faker.UserName() routine and the possible
+// combinations that it can return. Currently faker.Username() can return a
+// 2 letter username
+var usernameCheck = regexp.MustCompile(`^[a-zA-Z0-9._-]{2,30}$`).MatchString
+
+// UsernameMinLength the minium length allowed for a username
+const UsernameMinLength int = 2
+
+// UsernameMaxLength the maximum length allowed for a username
+const UsernameMaxLength int = 30
+
+// PasswordMinLength the minimum length allowed for a password
+const PasswordMinLength int = 6
 
 // User privileges information
 type User struct {
@@ -29,7 +42,14 @@ type User struct {
 // are checked for correctness.
 func NewUser(u *client.UserCreate) (*User, error) {
 	if !usernameCheck(u.Username) {
-		err := fmt.Errorf("invalid username specified. Username must be between 4-16 characters and composed of characters: a-z, A-Z, 0-9, -, and _")
+		err := fmt.Errorf("invalid username specified, '%s'", u.Username)
+		return nil, err
+	}
+	// NOTE: In a real production environment a stricter password
+	// check would need to be done to ensure the user creates a secure
+	// password.
+	if len(u.Password) < PasswordMinLength {
+		err := fmt.Errorf("invalid password specified, minium length is %d", PasswordMinLength)
 		return nil, err
 	}
 	user := User{
@@ -43,13 +63,6 @@ func NewUser(u *client.UserCreate) (*User, error) {
 }
 
 func (u *User) setHashedPassword(password string) error {
-	// Only enforce that password is at least 8 characters long and contains no spaces
-	password = strings.TrimSpace(password)
-	if len(password) < 8 {
-		err := fmt.Errorf("invalid password specified, minimum length is 8 characters")
-		return err
-
-	}
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

@@ -16,6 +16,7 @@ import (
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/perm"
+	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,14 +26,14 @@ type APIError struct {
 	ErrorMessage string `json:"message" example:"status bad request"`
 }
 
-func errorWithJSON(response http.ResponseWriter, message string, code int) {
-	response.Header().Set("Content-Type", "application/json; charset=utf-8")
-	response.WriteHeader(code)
+func errorWithJSON(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
 	error := APIError{
 		ErrorCode:    code,
 		ErrorMessage: message,
 	}
-	json.NewEncoder(response).Encode(error)
+	json.NewEncoder(w).Encode(error)
 }
 
 // Identity Used to return the ID of a create operation
@@ -66,36 +67,39 @@ type Identity struct {
 // @param Authorization header string true "The JWT authorization token acquired at login""
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} Identity
+// @Success 201 {object} Identity "Created"
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized, if the user lacks privileges to perform operation"
+// @Failure 401 {object} APIError "Unauthorized, if the user not authorized"
+// @Failure 403 {object} APIError "Forbidden, if the user lacks permission to perform the requested operation"
 // @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 409 {object} APIError "Conflict, if attempting to add a user that already exists"
+// @Failure 415 {object} APIError "UnsupportedMediaType, request occurred without a required application/json content"
 // @Failure 500 {object} APIError "Internal Server Error"
-// @Router /user/create [post]
-func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.Request) {
+// @Router /users [post]
+func (s *ServerService) CreateUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Trace("CreateUser request")
-	if request.Method != "POST" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
+	if r.Method != "POST" {
+		errorWithJSON(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return
 	}
-	claims, httpStatus := validateClaim(response, request)
+	claims, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	// Only allow operation if the user is an staff or administrator
 	if !claims.Privilege.Grants(perm.Staff) {
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		errorWithJSON(w,
+			http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 
 	var user client.UserCreate
-	err := json.NewDecoder(request.Body).Decode(&user)
+	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusBadRequest)
+		errorWithJSON(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -103,8 +107,8 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 		// Staff level user can not create an admin level user
 		log.Warnf("%s:%s attempted to create a administrator level user",
 			claims.ID, claims.Username)
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		errorWithJSON(w,
+			http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 	log.Tracef("Request by %s:%s to create new user %s with perm %s", claims.ID, claims.Username,
@@ -113,22 +117,38 @@ func (s *ServerService) CreateUser(response http.ResponseWriter, request *http.R
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// TODO The fields in the user object can fail due to validation
+	// errors. If this is the case then we should consider returning
+	// 422 Unprocessable Entry and return a structure to the callee
+	// with the validation errors.  Something along the lines of
+	//	{
+	// 		"message": "Validation Failed",
+	// 		"errors": [
+	// 				{
+	// 				  "message": "No password specified"
+	// 				},
+	// 				{
+	// 				  "message": "username must be x between x-y"
+	// 				}
+	// 			  ]
+	// 	}
+	//
 	id, err := userService.Create(ctx, &user)
 	if err != nil {
 		log.Error("Failed to create user ", err)
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	log.Infof("%s:%s created user %s:%s",
 		claims.ID, claims.Username, user.Username, id)
-	response.Header().Set("content-type", "application/json")
-	response.WriteHeader(http.StatusOK)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	// Return the ID a result of creation
 	result := Identity{id}
-	json.NewEncoder(response).Encode(result)
+	json.NewEncoder(w).Encode(result)
 	return
 }
 
@@ -164,43 +184,44 @@ type DeleteCount struct {
 // @Produce  json
 // @Success 200 {object} DeleteCount "Number of items deleted"
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized, if the user lacks privileges to perform operation"
+// @Failure 401 {object} APIError "Unauthorized, if the user not authorized"
+// @Failure 403 {object} APIError "Forbidden, if the user lacks permission to perform the requested operation"
 // @Failure 404 {object} APIError "Not Found, if the ID of the user to delete is not found"
 // @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
-// @Router /user/delete/{user_id} [delete]
-func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.Request) {
+// @Router /users/{user_id} [delete]
+func (s *ServerService) DeleteUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Trace("DeleteUser request")
-	if request.Method != "DELETE" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
+	if r.Method != "DELETE" {
+		errorWithJSON(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return
 	}
-	claims, httpStatus := validateClaim(response, request)
+	claims, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	// Only allow operation if the user is an staff or administrator
 	if !claims.Privilege.Grants(perm.Staff) {
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		errorWithJSON(w,
+			http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 
 	// Retrieve the id from the URL of the user to delete
-	p := request.URL.EscapedPath()
+	p := r.URL.EscapedPath()
 	id := path.Base(p)
 	if len(id) == 0 || strings.HasSuffix(p, "/") {
 		// Request does not contain requested user
-		errorWithJSON(response, "Unable to delete user, no id specified", http.StatusBadRequest)
+		errorWithJSON(w, "Unable to delete user, no id specified", http.StatusBadRequest)
 		return
 	}
 
 	// A user can not delete themselves
 	if claims.ID == id {
-		errorWithJSON(response, "User can not delete themselves", http.StatusBadRequest)
+		errorWithJSON(w, "User can not delete themselves", http.StatusBadRequest)
 		return
 	}
 
@@ -208,7 +229,7 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -217,13 +238,13 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		// wished to delete.
 		userInfo, err := userService.GetByID(ctx, id)
 		if err != nil {
-			errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+			errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if perm.Convert(userInfo.Privilege) != perm.Basic {
 			// Staff user can not delete a Staff or Admin user
-			errorWithJSON(response,
-				http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			errorWithJSON(w,
+				http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
 	}
@@ -234,20 +255,20 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 		log.Errorf("%s:%s failed to delete user %s, %s",
 			claims.ID, claims.Username, id, err)
 		if err != nil {
-			errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+			errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		// user delete failed as no users were deleted
-		errorWithJSON(response, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		errorWithJSON(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	log.Infof("%s:%s successfully deleted user %s", claims.ID, claims.Username, id)
 
 	// Return a count of the # of entries deleted
 	result := DeleteCount{cnt}
-	response.Header().Set("content-type", "application/json")
-	json.NewEncoder(response).Encode(result)
-	response.WriteHeader(http.StatusOK)
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(result)
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetUser return stored information for a specific user ID contained as the last path
@@ -275,30 +296,31 @@ func (s *ServerService) DeleteUser(response http.ResponseWriter, request *http.R
 // @Produce  json
 // @Success 200 {object} client.UserInfo
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 401 {object} APIError "Unauthorized, if the user not authorized"
+// @Failure 403 {object} APIError "Forbidden, if the user lacks permission to perform the red operation"
 // @Failure 404 {object} APIError "Not Found"
 // @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
-// @Router /user/{user_id} [get]
-func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Request) {
-	if request.Method != "GET" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
+// @Router /users/{user_id} [get]
+func (s *ServerService) GetUser(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	if r.Method != "GET" {
+		errorWithJSON(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return
 	}
 
-	claims, httpStatus := validateClaim(response, request)
+	claims, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	// Retrieve the user ID from the URL
-	p := request.URL.EscapedPath()
+	p := r.URL.EscapedPath()
 	userID := path.Base(p)
 	if len(userID) == 0 || strings.HasSuffix(p, "/") {
 		// Request does not contain requested user
-		errorWithJSON(response,
+		errorWithJSON(w,
 			"Unable to fetch user data, no user id specified", http.StatusBadRequest)
 		return
 	}
@@ -310,8 +332,8 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 		// user is requesting data about themselves
 		if claims.ID != userID {
 			log.Tracef("User not authorized claims.ID %s != %s", claims.ID, userID)
-			errorWithJSON(response,
-				http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			errorWithJSON(w,
+				http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
 	}
@@ -320,18 +342,18 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	user, err := userService.GetByID(ctx, userID)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusNotFound)
+		errorWithJSON(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	response.Header().Set("content-type", "application/json")
-	response.WriteHeader(http.StatusOK)
-	json.NewEncoder(response).Encode(user)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }
 
 // GetUsers A GET request that returns information about all known users.
@@ -351,29 +373,30 @@ func (s *ServerService) GetUser(response http.ResponseWriter, request *http.Requ
 // @Produce  json
 // @Success 200 {array} client.UserInfo
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 401 {object} APIError "Unauthorized, if the user not authorized"
+// @Failure 403 {object} APIError "Forbidden, if the user lacks permission to perform the requested operation"
 // @Failure 404 {object} APIError "Not Found"
 // @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Router /users/ [get]
-func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) GetUsers(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Trace("GetUsers request")
-	if request.Method != "GET" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
+	if r.Method != "GET" {
+		errorWithJSON(w, http.StatusText(http.StatusMethodNotAllowed),
 			http.StatusMethodNotAllowed)
 		return
 	}
 
-	claims, httpStatus := validateClaim(response, request)
+	claims, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	// Only allow operation if the user is an administer/staff
 	if !claims.Privilege.Grants(perm.Staff) {
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		errorWithJSON(w,
+			http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 
@@ -381,17 +404,17 @@ func (s *ServerService) GetUsers(response http.ResponseWriter, request *http.Req
 	defer cancel()
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	user, err := userService.GetAll(ctx)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	response.Header().Set("content-type", "application/json")
-	response.WriteHeader(http.StatusOK)
-	json.NewEncoder(response).Encode(user)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }
 
 // UpdateResults the results of the update operation
@@ -431,34 +454,32 @@ type UpdateResults struct {
 // @Produce  json
 // @Success 200 {object} UpdateResults
 // @Failure 400 {object} APIError "Bad Request"
-// @Failure 401 {object} APIError "Unauthorized"
+// @Failure 401 {object} APIError "Unauthorized, if the user not authorized"
+// @Failure 403 {object} APIError "Forbidden, if the user lacks permission to perform the requested operation"
 // @Failure 404 {object} APIError "Not Found"
 // @Failure 405 {object} APIError "Method Not Allowed"
+// @Failure 415 {object} APIError "UnsupportedMediaType, request occurred without a required application/json content"
+// @Failure 421 {object} APIError "Validation Error"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Router /user/updatePasswd [patch]
-func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request *http.Request) {
+func (s *ServerService) UpdateUserPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Trace("UpdateUserPassword request")
-	if request.Method != "PATCH" {
-		errorWithJSON(response, http.StatusText(http.StatusMethodNotAllowed),
-			http.StatusMethodNotAllowed)
-		return
-	}
-	claims, httpStatus := validateClaim(response, request)
+	claims, httpStatus := validateClaim(w, r)
 	if httpStatus != http.StatusOK {
-		errorWithJSON(response, http.StatusText(httpStatus), httpStatus)
+		errorWithJSON(w, http.StatusText(httpStatus), httpStatus)
 		return
 	}
 
 	var pUpdate client.PasswordUpdate
-	err := json.NewDecoder(request.Body).Decode(&pUpdate)
+	err := json.NewDecoder(r.Body).Decode(&pUpdate)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusBadRequest)
+		errorWithJSON(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
 
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response,
+		errorWithJSON(w,
 			http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -470,7 +491,7 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 	// the current password, otherwise we ignore any value in it
 	if pUpdate.ID == claims.ID {
 		if len(pUpdate.CurrentPassword) == 0 {
-			errorWithJSON(response, "current password must be specified", http.StatusBadRequest)
+			errorWithJSON(w, "current password must be specified", http.StatusBadRequest)
 			return
 		}
 		// If the user is trying to change there own password, revalidate them
@@ -481,7 +502,7 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 		_, err := userService.Validate(ctx, &creds)
 		if err != nil {
 			log.Warning("Credentials didn't validate")
-			errorWithJSON(response,
+			errorWithJSON(w,
 				http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
@@ -491,8 +512,8 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 
 		// Only allow operation if the user is an staff or administrator
 		if !claims.Privilege.Grants(perm.Staff) {
-			errorWithJSON(response,
-				http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			errorWithJSON(w,
+				http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
 
@@ -503,22 +524,35 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 			// Retrieve information about the user being operated on.
 			userInfo, err := userService.GetByID(ctx, pUpdate.ID)
 			if err != nil {
-				errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+				errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			if perm.Convert(userInfo.Privilege) != perm.Basic {
 				// Staff user can not modify password credentials of Staff or Admin user
-				errorWithJSON(response,
-					http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				errorWithJSON(w,
+					http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
 			}
 		}
 	}
 
 	// Update the password for the user
+	// TODO The fields in the user object can fail due to validation
+	// errors. If this is the case then we should consider returning
+	// 422 Unprocessable Entry and return a structure to the callee
+	// with the validation errors.  Something along the lines of
+	//	{
+	// 		"message": "Validation Failed",
+	// 		"errors": [
+	// 				{
+	// 				  "message": "No password specified"
+	// 				},
+	// 			  ]
+	// 	}
+	//
 	cnt, err := userService.UpdatePassword(ctx, &pUpdate)
 	if err != nil {
-		errorWithJSON(response, err.Error(), http.StatusInternalServerError)
+		errorWithJSON(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -526,8 +560,8 @@ func (s *ServerService) UpdateUserPassword(response http.ResponseWriter, request
 		claims.ID, claims.Username)
 	// Return a count of the # of entries updated
 	result := UpdateResults{cnt}
-	response.Header().Set("content-type", "application/json")
-	json.NewEncoder(response).Encode(result)
-	response.WriteHeader(http.StatusOK)
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(result)
+	w.WriteHeader(http.StatusOK)
 	return
 }

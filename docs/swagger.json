@@ -75,12 +75,6 @@
                             "$ref": "#/definitions/controllers.APIError"
                         }
                     },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -129,157 +123,6 @@
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    }
-                }
-            }
-        },
-        "/user/create": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Create a user for the activity server.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed. A admin privileged user can create a user with any privilege level.\nA staff privileged user can create a staff or a basic privilege level user.\nA basic privilege user can not create any users.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "client.UserCreate Identity"
-                ],
-                "summary": "Create a user for the activity server",
-                "parameters": [
-                    {
-                        "description": "Configuration Data of the user being create",
-                        "name": "UserCreate",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "$ref": "#/definitions/client.UserCreate"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "The JWT authorization token acquired at login",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.Identity"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized, if the user lacks privileges to perform operation",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    }
-                }
-            }
-        },
-        "/user/delete/{user_id}": {
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Delete a user for the given ID.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed.\nA admin privileged user can delete a user with any privilege level.\nA staff privileged user can delete a basic privilege level user.\nA basic privilege user can not delete any users.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "DeleteCount"
-                ],
-                "summary": "Delete a user from the activity server",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID of the user to delete",
-                        "name": "user_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "The JWT authorization token acquired at login",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Number of items deleted",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.DeleteCount"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized, if the user lacks privileges to perform operation",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found, if the ID of the user to delete is not found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.APIError"
-                        }
-                    },
-                    "405": {
-                        "description": "Method Not Allowed",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
@@ -344,7 +187,13 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized, if the user not authorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden, if the user lacks permission to perform the requested operation",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
@@ -357,6 +206,18 @@
                     },
                     "405": {
                         "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "415": {
+                        "description": "UnsupportedMediaType, request occurred without a required application/json content",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "421": {
+                        "description": "Validation Error",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
@@ -370,14 +231,14 @@
                 }
             }
         },
-        "/user/{user_id}": {
-            "get": {
+        "/users": {
+            "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get the client.UserInfo data for the specified user ID.\nThe privileges (client.UserInfo.Privilege) of the user invoking this\nmethod are used to determine what requests can be satisfied.\nA admin and staff privileged user can fetch details about any user.\nA basic privilege user can only fetch details about themselves.",
+                "description": "Create a user for the activity server.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed. A admin privileged user can create a user with any privilege level.\nA staff privileged user can create a staff or a basic privilege level user.\nA basic privilege user can not create any users.",
                 "consumes": [
                     "application/json"
                 ],
@@ -385,16 +246,19 @@
                     "application/json"
                 ],
                 "tags": [
-                    "client.UserInfo"
+                    "client.UserCreate Identity"
                 ],
-                "summary": "Get information about the specified user",
+                "summary": "Create a user for the activity server",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "ID of the User to fetch details about",
-                        "name": "user_id",
-                        "in": "path",
-                        "required": true
+                        "description": "Configuration Data of the user being create",
+                        "name": "UserCreate",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "$ref": "#/definitions/client.UserCreate"
+                        }
                     },
                     {
                         "type": "string",
@@ -405,10 +269,10 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/client.UserInfo"
+                            "$ref": "#/definitions/controllers.Identity"
                         }
                     },
                     "400": {
@@ -418,19 +282,31 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized, if the user not authorized",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden, if the user lacks permission to perform the requested operation",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
                     },
                     "405": {
                         "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict, if attempting to add a user that already exists",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "415": {
+                        "description": "UnsupportedMediaType, request occurred without a required application/json content",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
@@ -488,13 +364,177 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized, if the user not authorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden, if the user lacks permission to perform the requested operation",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get the client.UserInfo data for the specified user ID.\nThe privileges (client.UserInfo.Privilege) of the user invoking this\nmethod are used to determine what requests can be satisfied.\nA admin and staff privileged user can fetch details about any user.\nA basic privilege user can only fetch details about themselves.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "client.UserInfo"
+                ],
+                "summary": "Get information about the specified user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the User to fetch details about",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.UserInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized, if the user not authorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden, if the user lacks permission to perform the red operation",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "405": {
+                        "description": "Method Not Allowed",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete a user for the given ID.\nThe privileges of the user invoking this method determine whether this operation\ncan be performed.\nA admin privileged user can delete a user with any privilege level.\nA staff privileged user can delete a basic privilege level user.\nA basic privilege user can not delete any users.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DeleteCount"
+                ],
+                "summary": "Delete a user from the activity server",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID of the user to delete",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "The JWT authorization token acquired at login",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of items deleted",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeleteCount"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized, if the user not authorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden, if the user lacks permission to perform the requested operation",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found, if the ID of the user to delete is not found",
                         "schema": {
                             "$ref": "#/definitions/controllers.APIError"
                         }

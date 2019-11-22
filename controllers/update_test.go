@@ -3,11 +3,13 @@ package controllers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/enpointe/activity/models/client"
+	"github.com/julienschmidt/httprouter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,55 +32,69 @@ func TestUpdateFailures(t *testing.T) {
 	}
 
 	testInput := []testData{
-		testData{ // Incorrect Method
-			method:           "GET",
-			testUser:         testBasic1ID,
-			expectedResponse: http.StatusMethodNotAllowed,
-		},
-		testData{ // No user specified
-			method:           "PATCH",
-			testUser:         "",
-			expectedResponse: http.StatusBadRequest,
-		},
 		testData{ // Request is fine but no JSON data
-			method:           "PATCH",
+			method:           http.MethodPatch,
 			testUser:         testBasic1ID,
-			expectedResponse: http.StatusBadRequest,
+			expectedResponse: http.StatusUnsupportedMediaType,
 		},
 	}
 	for _, data := range testInput {
-		url := "http://user/Update/" + data.testUser
-		request := httptest.NewRequest(data.method, url, nil)
-		request.AddCookie(tokenCookie)
-		response := httptest.NewRecorder()
-		server.UpdateUserPassword(response, request)
-		assert.Equalf(t, data.expectedResponse, response.Code, "%s %s", data.method, url)
+		t.Run(fmt.Sprintf("%s-UpdatePassword-ID-%s", creds.Username, data.testUser),
+			func(t *testing.T) {
+				url := "http://user/Update/" + data.testUser
+				request := httptest.NewRequest(data.method, url, nil)
+				request.AddCookie(tokenCookie)
+				response := httptest.NewRecorder()
+				ps := httprouter.Params{
+					httprouter.Param{
+						Key:   "id",
+						Value: data.testUser,
+					},
+				}
+				server.UpdateUserPassword(response, request, ps)
+				assert.Equalf(t, data.expectedResponse, response.Code, "%s %s", data.method, url)
+			})
 	}
 
 	// Test no token associated with request
 	request := httptest.NewRequest("PATCH", "http://user/Update/"+testBasic1ID, nil)
 	response := httptest.NewRecorder()
-	server.UpdateUserPassword(response, request)
+	ps := httprouter.Params{
+		httprouter.Param{
+			Key:   "id",
+			Value: testBasic1ID,
+		},
+	}
+	server.UpdateUserPassword(response, request, ps)
 	assert.Equal(t, http.StatusUnauthorized, response.Code)
 }
 
 func testUserUpdatePassword(t *testing.T, creds client.Credentials, testData []uPasswdTestData) {
 	server := setup(t, testMultiUserFilenameJSON)
-	//defer teardown(t, server)
+	defer teardown(t, server)
 	tokenCookie := login(t, server, creds)
 	defer logout(t, server, tokenCookie)
 
 	for _, d := range testData {
-		requestBody, err := json.Marshal(d.userInfo)
-		assert.NoError(t, err)
-		request := httptest.NewRequest("PATCH", "http://user/UpdateUserPassword", bytes.NewBuffer(requestBody))
-		request.AddCookie(tokenCookie)
-		response := httptest.NewRecorder()
-		server.UpdateUserPassword(response, request)
-		assert.Equalf(t, d.expectedResponse, response.Code,
-			"%s attempted to change password for %s to %s, expected '%s' got '%s'",
-			creds.Username, d.userInfo.ID, d.userInfo.NewPassword,
-			http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+		t.Run(fmt.Sprintf("%s-UpdatePassword-ID-%s", creds.Username, d.userInfo.ID),
+			func(t *testing.T) {
+				requestBody, err := json.Marshal(d.userInfo)
+				assert.NoError(t, err)
+				request := httptest.NewRequest(http.MethodPatch, "http://users/"+d.userInfo.ID, bytes.NewBuffer(requestBody))
+				request.AddCookie(tokenCookie)
+				response := httptest.NewRecorder()
+				ps := httprouter.Params{
+					httprouter.Param{
+						Key:   "id",
+						Value: d.userInfo.ID,
+					},
+				}
+				server.UpdateUserPassword(response, request, ps)
+				assert.Equalf(t, d.expectedResponse, response.Code,
+					"%s attempted to change password for %s to %s, expected '%s' got '%s'",
+					creds.Username, d.userInfo.ID, d.userInfo.NewPassword,
+					http.StatusText(d.expectedResponse), http.StatusText(response.Code))
+			})
 	}
 }
 
@@ -146,7 +162,7 @@ func TestStaffUpdatePassword(t *testing.T) {
 				ID:          testAdmin1ID,
 				NewPassword: newPassword,
 			},
-			expectedResponse: http.StatusUnauthorized,
+			expectedResponse: http.StatusForbidden,
 		},
 		uPasswdTestData{ // Fails because current password not specified
 			userInfo: client.PasswordUpdate{
@@ -168,7 +184,7 @@ func TestStaffUpdatePassword(t *testing.T) {
 				ID:          testStaff2ID,
 				NewPassword: newPassword,
 			},
-			expectedResponse: http.StatusUnauthorized,
+			expectedResponse: http.StatusForbidden,
 		},
 		uPasswdTestData{
 			userInfo: client.PasswordUpdate{
@@ -199,14 +215,14 @@ func TestBasicUpdatePassword(t *testing.T) {
 				ID:          testAdmin1ID,
 				NewPassword: newPassword,
 			},
-			expectedResponse: http.StatusUnauthorized,
+			expectedResponse: http.StatusForbidden,
 		},
 		uPasswdTestData{
 			userInfo: client.PasswordUpdate{
 				ID:          testStaff1ID,
 				NewPassword: newPassword,
 			},
-			expectedResponse: http.StatusUnauthorized,
+			expectedResponse: http.StatusForbidden,
 		},
 		uPasswdTestData{ // Fails since current password not specified
 			userInfo: client.PasswordUpdate{
@@ -228,7 +244,7 @@ func TestBasicUpdatePassword(t *testing.T) {
 				ID:          testBasic2ID,
 				NewPassword: newPassword,
 			},
-			expectedResponse: http.StatusUnauthorized,
+			expectedResponse: http.StatusForbidden,
 		},
 	}
 	testUserUpdatePassword(t, creds, testData)

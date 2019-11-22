@@ -119,10 +119,6 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/controllers.APIError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/controllers.APIError'
         "500":
           description: Internal Server Error
           schema:
@@ -163,10 +159,6 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/controllers.APIError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/controllers.APIError'
         "500":
           description: Internal Server Error
           schema:
@@ -174,164 +166,6 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Log out the current user
-  /user/{user_id}:
-    get:
-      consumes:
-      - application/json
-      description: |-
-        Get the client.UserInfo data for the specified user ID.
-        The privileges (client.UserInfo.Privilege) of the user invoking this
-        method are used to determine what requests can be satisfied.
-        A admin and staff privileged user can fetch details about any user.
-        A basic privilege user can only fetch details about themselves.
-      parameters:
-      - description: ID of the User to fetch details about
-        in: path
-        name: user_id
-        required: true
-        type: string
-      - description: The JWT authorization token acquired at login
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/client.UserInfo'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-      security:
-      - ApiKeyAuth: []
-      summary: Get information about the specified user
-      tags:
-      - client.UserInfo
-  /user/create:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        Create a user for the activity server.
-        The privileges of the user invoking this method determine whether this operation
-        can be performed. A admin privileged user can create a user with any privilege level.
-        A staff privileged user can create a staff or a basic privilege level user.
-        A basic privilege user can not create any users.
-      parameters:
-      - description: Configuration Data of the user being create
-        in: body
-        name: UserCreate
-        required: true
-        schema:
-          $ref: '#/definitions/client.UserCreate'
-          type: object
-      - description: The JWT authorization token acquired at login
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/controllers.Identity'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "401":
-          description: Unauthorized, if the user lacks privileges to perform operation
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-      security:
-      - ApiKeyAuth: []
-      summary: Create a user for the activity server
-      tags:
-      - client.UserCreate Identity
-  /user/delete/{user_id}:
-    delete:
-      consumes:
-      - application/json
-      description: |-
-        Delete a user for the given ID.
-        The privileges of the user invoking this method determine whether this operation
-        can be performed.
-        A admin privileged user can delete a user with any privilege level.
-        A staff privileged user can delete a basic privilege level user.
-        A basic privilege user can not delete any users.
-      parameters:
-      - description: ID of the user to delete
-        in: path
-        name: user_id
-        required: true
-        type: string
-      - description: The JWT authorization token acquired at login
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Number of items deleted
-          schema:
-            $ref: '#/definitions/controllers.DeleteCount'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "401":
-          description: Unauthorized, if the user lacks privileges to perform operation
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "404":
-          description: Not Found, if the ID of the user to delete is not found
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "405":
-          description: Method Not Allowed
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.APIError'
-      security:
-      - ApiKeyAuth: []
-      summary: Delete a user from the activity server
-      tags:
-      - DeleteCount
   /user/updatePasswd:
     patch:
       consumes:
@@ -370,7 +204,12 @@ paths:
           schema:
             $ref: '#/definitions/controllers.APIError'
         "401":
-          description: Unauthorized
+          description: Unauthorized, if the user not authorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "403":
+          description: Forbidden, if the user lacks permission to perform the requested
+            operation
           schema:
             $ref: '#/definitions/controllers.APIError'
         "404":
@@ -379,6 +218,15 @@ paths:
             $ref: '#/definitions/controllers.APIError'
         "405":
           description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "415":
+          description: UnsupportedMediaType, request occurred without a required application/json
+            content
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "421":
+          description: Validation Error
           schema:
             $ref: '#/definitions/controllers.APIError'
         "500":
@@ -390,6 +238,71 @@ paths:
       summary: Update the password for a user
       tags:
       - client.UserPassword
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Create a user for the activity server.
+        The privileges of the user invoking this method determine whether this operation
+        can be performed. A admin privileged user can create a user with any privilege level.
+        A staff privileged user can create a staff or a basic privilege level user.
+        A basic privilege user can not create any users.
+      parameters:
+      - description: Configuration Data of the user being create
+        in: body
+        name: UserCreate
+        required: true
+        schema:
+          $ref: '#/definitions/client.UserCreate'
+          type: object
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/controllers.Identity'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized, if the user not authorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "403":
+          description: Forbidden, if the user lacks permission to perform the requested
+            operation
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "409":
+          description: Conflict, if attempting to add a user that already exists
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "415":
+          description: UnsupportedMediaType, request occurred without a required application/json
+            content
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a user for the activity server
+      tags:
+      - client.UserCreate Identity
   /users/:
     get:
       consumes:
@@ -417,7 +330,12 @@ paths:
           schema:
             $ref: '#/definitions/controllers.APIError'
         "401":
-          description: Unauthorized
+          description: Unauthorized, if the user not authorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "403":
+          description: Forbidden, if the user lacks permission to perform the requested
+            operation
           schema:
             $ref: '#/definitions/controllers.APIError'
         "404":
@@ -435,6 +353,122 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Get user information for all users
+      tags:
+      - client.UserInfo
+  /users/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Delete a user for the given ID.
+        The privileges of the user invoking this method determine whether this operation
+        can be performed.
+        A admin privileged user can delete a user with any privilege level.
+        A staff privileged user can delete a basic privilege level user.
+        A basic privilege user can not delete any users.
+      parameters:
+      - description: ID of the user to delete
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Number of items deleted
+          schema:
+            $ref: '#/definitions/controllers.DeleteCount'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized, if the user not authorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "403":
+          description: Forbidden, if the user lacks permission to perform the requested
+            operation
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found, if the ID of the user to delete is not found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a user from the activity server
+      tags:
+      - DeleteCount
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get the client.UserInfo data for the specified user ID.
+        The privileges (client.UserInfo.Privilege) of the user invoking this
+        method are used to determine what requests can be satisfied.
+        A admin and staff privileged user can fetch details about any user.
+        A basic privilege user can only fetch details about themselves.
+      parameters:
+      - description: ID of the User to fetch details about
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: The JWT authorization token acquired at login
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.UserInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "401":
+          description: Unauthorized, if the user not authorized
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "403":
+          description: Forbidden, if the user lacks permission to perform the red
+            operation
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "405":
+          description: Method Not Allowed
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.APIError'
+      security:
+      - ApiKeyAuth: []
+      summary: Get information about the specified user
       tags:
       - client.UserInfo
 securityDefinitions:

@@ -10,6 +10,7 @@ import (
 	"github.com/enpointe/activity/models/client"
 	"github.com/enpointe/activity/models/db"
 	"github.com/enpointe/activity/perm"
+	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,23 +43,15 @@ type activityClaims struct {
 // @Failure 400 {object} APIError "Bad Request"
 // @Failure 401 {object} APIError "Unauthorized"
 // @Failure 404 {object} APIError "Not Found"
-// @Failure 405 {object} APIError "Method Not Allowed"
 // @Failure 500 {object} APIError "Internal Server Error"
 // @Security ApiKeyAuth
 // @Router /login [post]
-func (s *ServerService) Login(response http.ResponseWriter, request *http.Request) {
-	if request.Method != "POST" {
-		errorWithJSON(response,
-			http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-
+func (s *ServerService) Login(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var creds client.Credentials
-	err := json.NewDecoder(request.Body).Decode(&creds)
+	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
-		log.Warningf("invalid log attempt, bad payload: %s", request.Body)
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		log.Warningf("invalid log attempt, bad payload: %s", r.Body)
+		errorWithJSON(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
@@ -66,15 +59,13 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 
 	userService, err := db.NewUserService(s.Database)
 	if err != nil {
-		errorWithJSON(response,
-			http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		errorWithJSON(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	clientUser, err := userService.Validate(ctx, &creds)
 	if err != nil {
 		log.Warning("Credentials didn't validate")
-		errorWithJSON(response,
-			http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		errorWithJSON(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -99,20 +90,20 @@ func (s *ServerService) Login(response http.ResponseWriter, request *http.Reques
 	if err != nil {
 		// If there is an error in creating the JWT return an internal server error
 		log.Errorf("JWT signing issue: %s", err)
-		errorWithJSON(response,
+		errorWithJSON(w,
 			http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	// Finally, we set the client cookie for "token" as the JWT we just generated
 	// we also set an expiry time which is the same as the token itself
-	http.SetCookie(response, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{
 		Name:   TokenCookie,
 		Value:  tokenString,
 		MaxAge: jwtExpirySeconds * 1000,
 	})
 	log.Infof("successfully logged in %s:%s", clientUser.ID, clientUser.Username)
-	response.Header().Set("content-type", "application/json")
-	json.NewEncoder(response).Encode(clientUser)
-	response.WriteHeader(http.StatusOK)
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(clientUser)
+	w.WriteHeader(http.StatusOK)
 }
