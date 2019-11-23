@@ -112,6 +112,6 @@ func main() {
 	docs.SwaggerInfo.Host = "localhost:8080"
 	docs.SwaggerInfo.BasePath = "/"
 	docs.SwaggerInfo.Schemes = []string{"http", "https"}
-	router.GET("/swagger/", swagger)
+	router.GET("/swagger/*name", swagger)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
