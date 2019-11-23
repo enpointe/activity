@@ -1,6 +1,6 @@
 # Simple makefile for building a testing module
 
-all: clean build swagger test
+all: clean build test
 
 build:
 	go build ./...
