@@ -14,10 +14,9 @@
 - [Project Structure](#project-structure)
 - [References](#references)
 
-This is a rework/expansion of the version 1.0 implementation of this activity logger which was written 
-as a take home project for a job interview.
+This is a rework/expansion of the version 1.0 implementation of this activity logger which was written as a take home project for a job interview.
 
-This project is primarily intended as a exercise in Go Programing
+**Note**: This project is primarily intended as a exercise in Go Programing
 
 In order to make the origional project a bit more interesting the overall project has been expanded to include
 
@@ -49,13 +48,10 @@ Current status of work completed so far:
 ## Work outstanding
 
 * Add ability to log exercise workouts
-* Improve unit test
-    * Investigate how to mock database calls
 * Create custom error types so that more realistic https status code can be returned when a error occurs at the database level due to bad data in request
 * Add database configuration for security
 * Add mechanism for prepopulating database with Exercises
     * mongoimport is available via [mongo tools](https://github.com/mongodb/mongo-tools)
-* Examine whether view code should have some context cancel in it. See [Stack Overflow question](https://stackoverflow.com/questions/47179024/how-to-check-if-a-request-was-cancelled)
 * JWT secret key needs to be configurable.
     * Consider creating configuration file for this
 * Need to create an initial admin user in order for http interfaces to function.
@@ -129,20 +125,22 @@ swagger documentation currently identifies it as being stored in the header. The
 implementation will be changed to match the documentation. For now the curl requests 
 outlined in the documented will have to be changed to use -b "authorization" flag.
 
-The following HTTP REST API methods are currently available:
-```
-http://localhost:8080/login
-http://localhost:8080/logout
-http://localhost:8080/user/{user_id}
-http://localhost:8080/users
-http://localhost:8080/user/create
-http://localhost:8080/user/delete/{user_id}
-http://localhost:8080/user/updatePasswd
-```
+The following HTTP/REST API methods are currently available:
+
+| URL | HTTP Verb | CRUD | Desciption |
+|------------------------------|--------|--------|--|
+| http://localhost:8080/login  | POST | | Log user into system |
+| http://localhost:8080/users  | GET | Read | Fetch information for all users |
+| http://localhost:8080/users/ | CREATE | Create | Create a new user |
+| http://localhost:8080/users/{id} | GET | Read | Fetch information for user with the specified ID |
+| http://localhost:8080/users/{id} | DELETE | Delete | Delete the user with the specified ID |
+| http://localhost:8080/users/{id} | UPDATE | Update/Replace | Update the information for the user with the specified ID |
+| http://localhost:8080/users/{id} | PATCH | Update/Modify | Partially update the information for the user with the specified ID |
+
 
 # Project Structure
 
-This project is laid out as a Go module in a hierachy to support the notion of Model-View-Container architecture. 
+This project conforms to the following layout
 
 ```
 ├── models                      // Models for our application
