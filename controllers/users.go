@@ -461,7 +461,7 @@ type UpdateResults struct {
 // @Failure 415 {object} APIError "UnsupportedMediaType, request occurred without a required application/json content"
 // @Failure 421 {object} APIError "Validation Error"
 // @Failure 500 {object} APIError "Internal Server Error"
-// @Router /user/updatePasswd [patch]
+// @Router /users [patch]
 func (s *ServerService) UpdateUserPassword(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	log.Trace("UpdateUserPassword request")
 	claims, httpStatus := validateClaim(w, r)
